@@ -20,3 +20,5 @@ local opts = {}
 require("vim-options")
 require("lazy").setup("plugins")
 
+vim.wo.number = true
+
