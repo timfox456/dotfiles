@@ -11,7 +11,23 @@ return {
     lazy = false,
     config = function()
       require("mason-lspconfig").setup({
-        ensure_installed = { "lua_ls" }
+        ensure_installed = { "lua_ls", "pyright" }
+      })
+    end
+  },
+  {
+    "WhoIsSethDaniel/mason-tool-installer.nvim",
+    laxy = false,
+    config = function()
+      require("mason-tool-installer").setup({
+        ensure_installed = {
+          'black',
+          'debugpy',
+          'flake8',
+          'isort',
+          'mypy',
+          'pylint',
+        },
       })
     end
   },
@@ -30,7 +46,6 @@ return {
       lspconfig.pyright.setup({
         capabilities = capabilities
       })
-
       vim.keymap.set('n', 'K', vim.lsp.buf.hover, {})
       vim.keymap.set('n', '<leader>gd', vim.lsp.buf.definition, {})
       vim.keymap.set('n', '<leader>gr', vim.lsp.buf.references, {})
