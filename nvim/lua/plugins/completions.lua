@@ -40,5 +40,8 @@ return {
         }),
       })
     end,
+  },
+  {
+    "folke/neodev.nvim", opts = {}
   }
 }

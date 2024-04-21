@@ -11,13 +11,13 @@ return {
     lazy = false,
     config = function()
       require("mason-lspconfig").setup({
-        ensure_installed = { "lua_ls", "pyright" }
+        ensure_installed = { "lua_ls", "pyright", "ruff", "ruff_lsp"}
       })
     end
   },
   {
     "WhoIsSethDaniel/mason-tool-installer.nvim",
-    laxy = false,
+    lazy = false,
     config = function()
       require("mason-tool-installer").setup({
         ensure_installed = {
@@ -43,7 +43,7 @@ return {
       lspconfig.tsserver.setup({
         capabilities = capabilities
       })
-      lspconfig.pyright.setup({
+      lspconfig.ruff_lsp.setup({
         capabilities = capabilities
       })
       vim.keymap.set('n', 'K', vim.lsp.buf.hover, {})

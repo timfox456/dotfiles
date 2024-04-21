@@ -18,4 +18,11 @@ vim.wo.number = true
 
 vim.wo.relativenumber = true -- relative line numbers
 
+-- yank to OS clipboard
+vim.keymap.set({"n", "v"}, "<leader>y", '"+y')
+vim.keymap.set({"n", "v"}, "<leader>Y", '"+y')
+vim.keymap.set({"n", "v"}, "<leader>yy", '"+yy')
+
+vim.keymap.set({"n", "v"}, "<leader>p", '"+p')
+vim.keymap.set({"n", "v"}, "<leader>P", '"+P')
 
