@@ -1,0 +1,16 @@
+# themes from https://github.com/alacritty/alacritty-theme
+
+import = ["/home/tfox/.config/alacritty/themes/gruvbox_dark.toml"]
+
+[font]
+size = 10
+
+[font.normal]
+family = "Hack Nerd Font"
+
+[window]
+decorations = "Transparent"
+
+[window.padding]
+x = 7
+y = 0
