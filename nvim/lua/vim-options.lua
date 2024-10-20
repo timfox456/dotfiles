@@ -25,4 +25,5 @@ vim.keymap.set({"n", "v"}, "<leader>yy", '"+yy')
 
 vim.keymap.set({"n", "v"}, "<leader>p", '"+p')
 vim.keymap.set({"n", "v"}, "<leader>P", '"+P')
+vim.keymap.set("i", "jj", "<ESC>", { silent = true })
 
