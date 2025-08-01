@@ -1,0 +1,107 @@
+# Set terminal colors
+set-option -sa terminal-overrides ",xterm*:Tc"
+
+# Enable mouse support
+set -g mouse on
+
+# Start windows and panes at 1, not 0
+set -g base-index 1
+set -g pane-base-index 1
+set-window-option -g pane-base-index 1
+set-option -g renumber-windows on
+
+# set leader key
+unbind C-b
+set-option -g prefix C-a
+bind-key C-a send-prefix
+
+# Conditional configuration based on OS and Wayland/X11
+if-shell "uname | grep -q Darwin" {
+    # macOS specific settings
+    set -g default-shell "/bin/zsh" # Adjust if your Zsh path is different
+    set -g default-command "reattach-to-user-namespace -l ${SHELL}"
+
+    # tmux-yank configuration for macOS
+    set -g @yank_action 'copy-pipe-and-cancel'
+    set -g @yank_selection 'primary'
+    set -g @yank_selection_mouse 'clipboard'
+    set -g @override_copy_command 'reattach-to-user-namespace pbcopy'
+} {
+    # Linux specific settings
+    # Detect Wayland or X11 session
+    if-shell "echo $XDG_SESSION_TYPE | grep -q wayland" {
+        # Linux Wayland specific settings
+        set -g default-shell "/bin/bash" # Adjust if your Bash path is different or use $SHELL
+
+        # tmux-yank configuration for Wayland
+        # Ensure wl-clipboard (providing wl-copy) is installed: sudo apt install wl-clipboard
+        set -g @yank_action 'copy-pipe-and-cancel'
+        set -g @yank_selection 'primary'
+        set -g @yank_selection_mouse 'clipboard'
+        set -g @override_copy_command 'wl-copy'
+    } {
+        # Linux X11 specific settings
+        set -g default-shell "/bin/bash" # Adjust if your Bash path is different or use $SHELL
+
+        # tmux-yank configuration for X11 (using xclip for system clipboard)
+        # Ensure xclip (or xsel) is installed: sudo apt install xclip
+        set -g @yank_action 'copy-pipe-and-cancel'
+        set -g @yank_selection 'primary'
+        set -g @yank_selection_mouse 'clipboard'
+        set -g @override_copy_command 'xclip -in -selection clipboard'
+        # If xclip is not available or you prefer xsel:
+        # set -g @override_copy_command 'xsel -i --clipboard'
+    }
+}
+
+# kill pane
+bind-key x kill-pane
+
+# Pane resizing
+bind -n M-h resize-pane -L
+bind -n M-l resize-pane -R
+bind -n M-k resize-pane -U
+bind -n M-j resize-pane -D
+
+# Move window to the left
+bind -n M-i swap-window -t -1
+
+# Move window to the right
+bind -n M-o swap-window -t +1
+
+# Set vi mode
+set-window-option -g mode-keys vi
+
+# Use visual selection mode as vi
+bind-key -T copy-mode-vi v send-keys -X begin-selection
+bind-key -T copy-mode-vi C-v send-keys -X rectangle-toggle
+bind-key -T copy-mode-vi y send-keys -X copy-selection-and-cancel
+
+# Save and restore session
+set -g @resurrect-save 'S'
+set -g @resurrect-restore 'R'
+
+# Tmux theme
+set -g @catppuccin_flavour 'mocha'
+set -g @catppuccin_right_separator "█"
+
+TMUX_FZF_ORDER="session|window|pane|command|keybinding"
+TMUX_FZF_OPTIONS="-p -w 90% -h 70% -m"
+
+# more options here: https://github.com/sainnhe/tmux-fzf/issues/6#issuecomment-578750879
+bind w run-shell -b "~/.config/tmux/plugins/tmux-fzf/scripts/window.sh switch"
+
+# Plugins
+set -g @plugin 'tmux-plugins/tpm'
+set -g @plugin 'tmux-plugins/tmux-sensible'
+set -g @plugin 'sainnhe/tmux-fzf'
+set -g @plugin 'christoomey/vim-tmux-navigator'
+set -g @plugin 'dreamsofcode-io/catppuccin-tmux'
+set -g @plugin 'tmux-plugins/tmux-resurrect'
+set -g @plugin 'tmux-plugins/tmux-continuum'
+set -g @plugin 'tmux-plugins/tmux-yank'
+
+set -g @resurrect-strategy-nvim 'session'
+
+# Initialize TMUX plugin manager (keep this at the very bottom)
+run '~/.tmux/plugins/tpm/tpm'
