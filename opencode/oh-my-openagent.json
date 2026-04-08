@@ -1,0 +1,66 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
+  "agents": {
+    "sisyphus": {
+      "model": "opencode-go/mimo-v2-pro",
+      "variant": "high",
+      "fallback_models": ["opencode-go/kimi-k2.5", "google/gemini-3.1-pro"],
+      "description": "High-speed execution and boilerplate generation."
+    },
+    "hephaestus": {
+      "model": "opencode-go/mimo-v2-pro",
+      "variant": "medium",
+      "description": "Deep autonomous worker for codebase exploration."
+    },
+    "oracle": {
+      "model": "opencode-go/kimi-k2.5",
+      "variant": "high",
+      "fallback_models": ["google/gemini-3.1-pro", "anthropic/claude-4.6-sonnet"],
+      "description": "Logic, debugging, and cross-file reasoning specialist."
+    },
+    "librarian": {
+      "model": "opencode-go/mimo-v2-omni",
+      "fallback_models": ["opencode-go/minimax-m2.7"],
+      "description": "Repo search and documentation lookup."
+    },
+    "explore": {
+      "model": "opencode-go/mimo-v2-omni"
+    },
+    "multimodal-looker": {
+      "model": "opencode-go/kimi-k2.5",
+      "variant": "medium",
+      "fallback_models": ["google/gemini-3.1-pro"],
+      "description": "Visual debugging and screenshot-to-code."
+    },
+    "prometheus": {
+      "model": "opencode-go/glm-5.1",
+      "variant": "high",
+      "temperature": 1.0,
+      "prompt": "# PROMETHEUS ARCHITECT ROLE: GLM-5.1\nYou are Prometheus, the Lead Architectural Planner. Your goal is to engineer a bulletproof execution plan using GLM-5.1 long-horizon reasoning.\n\n## OPERATIONAL DIRECTIVES\n1. **SKEPTICAL INTERVIEWER:** Identify 3+ ambiguities or \"edge-case traps\" before planning.\n2. **VERBOSITY OVER EFFICIENCY:** Give me 1500+ words of architectural reasoning.\n3. **DEPENDENCY GRAPHING:** Output a specific <dependency_map> tag.\n4. **NO VIBE-CODING:** Describe logic state-changes only.\n5. **XML ENFORCEMENT:** Follow the OmO schema strictly.\n\n<interview_questions>[Deeply technical questions]</interview_questions>\n<architectural_plan>[Long-form technical breakdown]</architectural_plan>\n<dependency_map>[Step-by-step file modification order]</dependency_map>"
+    },
+    "metis": {
+      "model": "opencode-go/glm-5.1",
+      "variant": "max",
+      "fallback_models": ["anthropic/claude-4.6-opus", "google/gemini-3.1-pro"]
+    },
+    "atlas": {
+      "model": "opencode-go/kimi-k2.5",
+      "variant": "max",
+      "temperature": 1.0,
+      "description": "Master orchestrator for multi-agent todo lists."
+    },
+    "titan": {
+      "model": "anthropic/claude-4.6-opus",
+      "variant": "max",
+      "fallback_models": ["google/gemini-3.1-pro", "opencode-go/glm-5.1"],
+      "description": "One-off upgrade agent for impossible tasks."
+    }
+  },
+  "categories": {
+    "visual-engineering": { "model": "opencode-go/kimi-k2.5", "variant": "high" },
+    "ultrabrain": { "model": "anthropic/claude-4.6-opus", "variant": "xhigh" },
+    "deep": { "model": "opencode-go/mimo-v2-pro", "variant": "high" },
+    "quick": { "model": "opencode-go/mimo-v2-omni" },
+    "writing": { "model": "opencode-go/kimi-k2.5" }
+  }
+}
