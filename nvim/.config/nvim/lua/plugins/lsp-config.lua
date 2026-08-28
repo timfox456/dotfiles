@@ -9,9 +9,10 @@ return {
   {
     "williamboman/mason-lspconfig.nvim",
     lazy = false,
+    dependencies = { "williamboman/mason.nvim" },
     config = function()
       require("mason-lspconfig").setup({
-        ensure_installed = { "lua_ls", "pyright", "ruff" }
+        ensure_installed = { "lua_ls", "pyright", "ruff", "ts_ls" }
       })
     end
   },
@@ -36,16 +37,22 @@ return {
     lazy = false,
     config = function()
       local capabilities = require("cmp_nvim_lsp").default_capabilities()
-      local lspconfig = require("lspconfig")
-      lspconfig.lua_ls.setup({
-        capabilities = capabilities
+
+      -- Native 0.11+ LSP API (require('lspconfig') framework is deprecated)
+      vim.lsp.config("*", { capabilities = capabilities })
+
+      vim.lsp.config("lua_ls", {
+        settings = {
+          Lua = {
+            runtime = { version = "LuaJIT" },
+            diagnostics = { globals = { "vim" } },
+            workspace = { checkThirdParty = false },
+          },
+        },
       })
-      lspconfig.ts_ls.setup({
-        capabilities = capabilities
-      })
-      lspconfig.ruff.setup({
-        capabilities = capabilities
-      })
+
+      vim.lsp.enable({ "lua_ls", "ts_ls", "pyright", "ruff" })
+
       vim.keymap.set('n', 'K', vim.lsp.buf.hover, {})
       vim.keymap.set('n', '<leader>gd', vim.lsp.buf.definition, {})
       vim.keymap.set('n', '<leader>gr', vim.lsp.buf.references, {})
