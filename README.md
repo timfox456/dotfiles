@@ -13,6 +13,21 @@ sudo apt install stow    # Ubuntu
 ./install.sh --server    # servers (tmux prefix C-a)
 ```
 
+## Ubuntu servers
+
+Ubuntu 24.04 ships neovim 0.9.5 (too old for this config) and an old tmux.
+`install-deps.sh` checks installed versions and installs modern ones —
+neovim from the official release tarball, tmux built from source (uses
+`sudo`, or `--user` for a `~/.local` install):
+
+```bash
+./install-deps.sh --check    # report only
+./install-deps.sh            # upgrade whatever is below minimum
+./install.sh --server
+```
+
+Defaults: nvim `0.12.4`, tmux `3.7c` (override: `NVIM_VERSION=x.y.z TMUX_VERSION=3.7c ./install-deps.sh`).
+
 - `nvim/` — symlinked as a whole dir; plugins pinned in `nvim/lazy-lock.json`,
   run `:Lazy restore` after cloning on a new machine.
 - `tmux/` vs `tmux-server/` — only one gets linked (both want `~/.config/tmux/tmux.conf`).
