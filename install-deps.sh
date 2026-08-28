@@ -21,6 +21,14 @@ TMUX_VERSION="${TMUX_VERSION:-3.7c}"
 MIN_NVIM_VERSION="${MIN_NVIM_VERSION:-0.11.0}"   # vim.lsp.config / vim.lsp.enable era
 MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs >= 3.3
 
+# Packages the editor toolchain relies on:
+#   rg -> telescope live_grep          fzf -> tmux-fzf
+#   git -> lazy.nvim, tpm              build-essential -> treesitter parser builds
+#   node/npm -> mason (pyright, typescript-language-server)
+#   python3/pip/venv -> mason (ruff, black, isort, mypy, pylint, debugpy)
+#   unzip -> some mason packages
+EDITOR_DEPS=(curl git unzip build-essential ripgrep fzf nodejs npm python3 python3-pip python3-venv)
+
 MODE="install"
 PREFIX="/usr/local"
 FORCE=0
@@ -93,6 +101,23 @@ remove_apt_package() {
     || warn "apt-get remove failed — our install still wins via PATH (/usr/local/bin precedes /usr/bin)"
 }
 
+# Ensure apt packages are installed (no-op on systems without dpkg, e.g. macOS).
+ensure_apt_packages() {
+  command -v dpkg >/dev/null 2>&1 || return 0
+  local missing=() pkg
+  for pkg in "$@"; do
+    dpkg -s "$pkg" >/dev/null 2>&1 || missing+=("$pkg")
+  done
+  ((${#missing[@]})) || return 0
+  if [[ $EUID -ne 0 && -z "$SUDO" ]]; then
+    warn "no root to install: ${missing[*]} — install manually or rerun without --user"
+    return 0
+  fi
+  log "installing apt packages: ${missing[*]}"
+  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get update -qq
+  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${missing[@]}"
+}
+
 current_nvim_version() {
   command -v nvim >/dev/null 2>&1 || return 1
   nvim --version | head -n1 | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n1
@@ -123,8 +148,22 @@ if [[ "$MODE" == "check" ]]; then
                     || log "nvim ${NVIM_CUR}: OK (>= ${MIN_NVIM_VERSION})"
   (( NEED_TMUX )) && warn "tmux ${TMUX_CUR:-missing}: BELOW minimum ${MIN_TMUX_VERSION} — run without --check to install ${TMUX_VERSION}" \
                   || log "tmux ${TMUX_CUR}: OK (>= ${MIN_TMUX_VERSION})"
+  if command -v dpkg >/dev/null 2>&1; then
+    MISSING_DEPS=()
+    for dep in "${EDITOR_DEPS[@]}"; do
+      dpkg -s "$dep" >/dev/null 2>&1 || MISSING_DEPS+=("$dep")
+    done
+    if ((${#MISSING_DEPS[@]})); then
+      warn "missing editor deps: ${MISSING_DEPS[*]} — will be installed"
+    else
+      log "editor deps (${EDITOR_DEPS[*]}): OK"
+    fi
+  fi
   exit 0
 fi
+
+# --- editor tool dependencies ------------------------------------------------
+ensure_apt_packages "${EDITOR_DEPS[@]}"
 
 TMPDIR_BUILD="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR_BUILD"' EXIT
@@ -152,16 +191,7 @@ fi
 if (( NEED_TMUX )); then
   command -v tmux >/dev/null 2>&1 && remove_apt_package tmux
   log "building tmux ${TMUX_VERSION} -> ${PREFIX}"
-  DEPS=(build-essential libevent-dev libncurses-dev bison pkg-config curl)
-  MISSING=()
-  for dep in "${DEPS[@]}"; do
-    dpkg -s "$dep" >/dev/null 2>&1 || MISSING+=("$dep")
-  done
-  if ((${#MISSING[@]})); then
-    log "installing build deps: ${MISSING[*]}"
-    $SUDO env DEBIAN_FRONTEND=noninteractive apt-get update -qq
-    $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${MISSING[@]}"
-  fi
+  ensure_apt_packages libevent-dev libncurses-dev bison
   curl -fsSL -o "$TMPDIR_BUILD/tmux.tar.gz" \
     "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz"
   tar -C "$TMPDIR_BUILD" -xzf "$TMPDIR_BUILD/tmux.tar.gz"
@@ -173,6 +203,40 @@ if (( NEED_TMUX )); then
   )
 else
   log "tmux ${TMUX_CUR}: up to date, skipping"
+fi
+
+# --- tpm: tmux plugin manager (must live at ~/.config/tmux/plugins/tpm) -----
+TPM_DIR="$HOME/.config/tmux/plugins/tpm"
+LEGACY_TPM_DIR="$HOME/.tmux/plugins/tpm"
+
+if command -v git >/dev/null 2>&1; then
+  if [[ -d "$TPM_DIR/.git" ]]; then
+    log "updating tpm at $TPM_DIR"
+    git -C "$TPM_DIR" pull --ff-only -q || warn "tpm update failed (non-fatal)"
+  elif [[ -d "$LEGACY_TPM_DIR/.git" ]]; then
+    log "migrating legacy tpm: ~/.tmux/plugins -> ~/.config/tmux/plugins"
+    mkdir -p "$HOME/.config/tmux/plugins"
+    mv "$HOME/.tmux/plugins/"* "$HOME/.config/tmux/plugins/" || true
+    rmdir "$HOME/.tmux/plugins" "$HOME/.tmux" 2>/dev/null || true
+    git -C "$TPM_DIR" pull --ff-only -q 2>/dev/null || true
+  else
+    log "installing tpm -> $TPM_DIR"
+    git clone -q https://github.com/tmux-plugins/tpm "$TPM_DIR" || warn "tpm clone failed"
+  fi
+  # modern tpm ships bin/install_plugins; older versions bin/install_plugins.sh
+  TPM_INSTALL=""
+  for cand in "$TPM_DIR/bin/install_plugins" "$TPM_DIR/bin/install_plugins.sh"; do
+    [[ -x "$cand" ]] && { TPM_INSTALL="$cand"; break; }
+  done
+  if [[ -n "$TPM_INSTALL" ]]; then
+    log "installing tmux plugins (non-interactive)"
+    "$TPM_INSTALL" >/dev/null 2>&1 \
+      || warn "plugin install failed — run 'prefix + I' inside tmux"
+  else
+    warn "tpm unavailable — run 'prefix + I' inside tmux to install plugins"
+  fi
+else
+  warn "git not found — skipping tpm setup (clone tpm or run 'prefix + I' later)"
 fi
 
 # --- verify -----------------------------------------------------------------

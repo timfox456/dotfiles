@@ -30,6 +30,12 @@ new install:
 
 Defaults: nvim `0.12.4`, tmux `3.7c` (override: `NVIM_VERSION=x.y.z TMUX_VERSION=3.7c ./install-deps.sh`).
 
+It also ensures the editor toolchain: `git curl unzip build-essential ripgrep fzf
+nodejs npm python3 python3-pip python3-venv` (telescope, treesitter builds, and
+the mason-installed LSP servers/tools), plus tpm at `~/.config/tmux/plugins/tpm`
+(cloned/migrated from `~/.tmux/plugins` if needed) with plugins installed
+non-interactively.
+
 - `nvim/` — symlinked as a whole dir; plugins pinned in `nvim/lazy-lock.json`,
   run `:Lazy restore` after cloning on a new machine.
 - `tmux/` vs `tmux-server/` — only one gets linked (both want `~/.config/tmux/tmux.conf`).
