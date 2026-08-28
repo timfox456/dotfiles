@@ -74,6 +74,25 @@ ver_ge() {
   [[ "$la" > "$lb" ]] && return 0 || return 1
 }
 
+# Remove apt/dpkg-owned copies of an outdated binary so they don't linger
+# alongside (or shadow) the one we install. No-op if dpkg is unavailable
+# (e.g. macOS) or the binary isn't owned by any package.
+remove_apt_package() {
+  command -v dpkg >/dev/null 2>&1 || return 0
+  local path pkgs
+  path="$(command -v "$1" 2>/dev/null)" || return 0
+  pkgs="$(dpkg -S "$path" 2>/dev/null | cut -d: -f1 | sort -u)" || return 0
+  [[ -z "$pkgs" ]] && return 0
+  if [[ -z "$SUDO" && "$PREFIX" != "/usr/local" ]]; then
+    warn "apt package(s) providing $path ($pkgs) left installed (no root);"
+    warn "make sure $PREFIX/bin precedes /usr/bin in PATH"
+    return 0
+  fi
+  log "removing apt-installed package(s) providing $path: $(echo "$pkgs" | tr '\n' ' ')"
+  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get remove -y -qq $pkgs \
+    || warn "apt-get remove failed — our install still wins via PATH (/usr/local/bin precedes /usr/bin)"
+}
+
 current_nvim_version() {
   command -v nvim >/dev/null 2>&1 || return 1
   nvim --version | head -n1 | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n1
@@ -112,6 +131,7 @@ trap 'rm -rf "$TMPDIR_BUILD"' EXIT
 
 # --- neovim: official release tarball ---------------------------------------
 if (( NEED_NVIM )); then
+  command -v nvim >/dev/null 2>&1 && remove_apt_package nvim
   case "$(uname -m)" in
     x86_64)          NVIM_ARCH="x86_64" ;;
     aarch64|arm64)   NVIM_ARCH="aarch64" ;;
@@ -130,6 +150,7 @@ fi
 
 # --- tmux: build from official release tarball ------------------------------
 if (( NEED_TMUX )); then
+  command -v tmux >/dev/null 2>&1 && remove_apt_package tmux
   log "building tmux ${TMUX_VERSION} -> ${PREFIX}"
   DEPS=(build-essential libevent-dev libncurses-dev bison pkg-config curl)
   MISSING=()

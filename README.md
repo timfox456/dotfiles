@@ -18,7 +18,9 @@ sudo apt install stow    # Ubuntu
 Ubuntu 24.04 ships neovim 0.9.5 (too old for this config) and an old tmux.
 `install-deps.sh` checks installed versions and installs modern ones —
 neovim from the official release tarball, tmux built from source (uses
-`sudo`, or `--user` for a `~/.local` install):
+`sudo`, or `--user` for a `~/.local` install). If the outdated binary came
+from apt, the owning packages are removed first so it doesn't shadow the
+new install:
 
 ```bash
 ./install-deps.sh --check    # report only
