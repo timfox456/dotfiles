@@ -22,8 +22,9 @@ sudo apt install stow    # Ubuntu
 
 ## Manual stow
 
+Packages mirror the `$HOME` layout (`<pkg>/.config/...`), so stow targets `$HOME`:
+
 ```bash
-stow --restow -t ~/.config nvim
-stow --restow -t ~/.config/tmux tmux-common tmux            # desktop
-stow --restow -t ~/.config/tmux tmux-common tmux-server     # server
+stow --restow -t ~ nvim tmux tmux-common             # desktop
+stow --restow -t ~ nvim tmux-server tmux-common      # server
 ```
