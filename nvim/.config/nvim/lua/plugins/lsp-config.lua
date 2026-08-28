@@ -11,8 +11,10 @@ return {
     lazy = false,
     dependencies = { "williamboman/mason.nvim" },
     config = function()
+      -- NOTE: ts_ls is NOT here — typescript-language-server was removed from the
+      -- mason registry; it's installed globally via npm in install-deps.sh instead.
       require("mason-lspconfig").setup({
-        ensure_installed = { "lua_ls", "pyright", "ruff", "ts_ls" }
+        ensure_installed = { "lua_ls", "pyright", "ruff" }
       })
     end
   },
@@ -47,6 +49,25 @@ return {
             runtime = { version = "LuaJIT" },
             diagnostics = { globals = { "vim" } },
             workspace = { checkThirdParty = false },
+          },
+        },
+      })
+
+      -- typescript-language-server (v5+) no longer falls back to the global
+      -- typescript package — point tsserver.path at npm's global install.
+      vim.lsp.config("ts_ls", {
+        init_options = {
+          tsserver = {
+            path = (function()
+              local npm_root = vim.fn.trim(vim.fn.system("npm root -g 2>/dev/null"))
+              if vim.v.shell_error == 0 and npm_root ~= "" then
+                local p = npm_root .. "/typescript/lib/tsserver.js"
+                if vim.uv.fs_stat(p) then
+                  return p
+                end
+              end
+              return nil
+            end)(),
           },
         },
       })

@@ -196,6 +196,28 @@ ensure_tree_sitter_cli() {
 }
 ensure_tree_sitter_cli
 
+# --- typescript-language-server (removed from mason registry; npm global) ----
+ensure_npm_globals() {
+  command -v npm >/dev/null 2>&1 || { warn "npm not found — skipping typescript-language-server install"; return 0; }
+  if command -v typescript-language-server >/dev/null 2>&1; then
+    log "typescript-language-server: $(typescript-language-server --version 2>&1 | head -n1)"
+    return 0
+  fi
+  local npm_prefix
+  npm_prefix="$(npm config get prefix)"
+  log "installing typescript-language-server + typescript (npm global)"
+  # typescript@5 pinned: TS 7+ dropped lib/tsserver.js, which typescript-language-server requires
+  if [[ -w "$npm_prefix/lib" || -w "$npm_prefix" ]]; then
+    npm install -g -q "typescript@5" typescript-language-server \
+      || warn "npm install failed — run 'npm i -g typescript@5 typescript-language-server' manually"
+  else
+    log "npm prefix $npm_prefix not writable — using sudo"
+    $SUDO env npm install -g -q "typescript@5" typescript-language-server \
+      || warn "npm install failed — run 'sudo npm i -g typescript@5 typescript-language-server' manually"
+  fi
+}
+ensure_npm_globals
+
 # --- neovim: official release tarball ---------------------------------------
 if (( NEED_NVIM )); then
   command -v nvim >/dev/null 2>&1 && remove_apt_package nvim
