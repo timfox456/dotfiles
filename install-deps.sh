@@ -243,6 +243,18 @@ fi
 NVIM_NEW="$(current_nvim_version || true)"
 TMUX_NEW="$(current_tmux_version || true)"
 log "done: nvim=${NVIM_NEW:-missing}, tmux=${TMUX_NEW:-missing}"
+
+report_tool() {
+  command -v "$1" >/dev/null 2>&1 || { warn "$1: NOT FOUND"; return; }
+  log "$1: $("$1" --version 2>&1 | head -n1)"
+}
+report_tool python3
+report_tool node
+report_tool npm
+report_tool rg
+report_tool fzf
+report_tool git
+
 if [[ "$PREFIX" == "${HOME}/.local" ]]; then
   warn "make sure ${HOME}/.local/bin is on your PATH"
 fi
