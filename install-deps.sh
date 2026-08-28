@@ -21,13 +21,14 @@ TMUX_VERSION="${TMUX_VERSION:-3.7c}"
 MIN_NVIM_VERSION="${MIN_NVIM_VERSION:-0.11.0}"   # vim.lsp.config / vim.lsp.enable era
 MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs >= 3.3
 
-# Packages the editor toolchain relies on:
+# Packages the setup relies on:
+#   stow -> install.sh (dotfiles linking; noble ships 2.3.1, fully sufficient)
 #   rg -> telescope live_grep          fzf -> tmux-fzf
 #   git -> lazy.nvim, tpm              build-essential -> treesitter parser builds
 #   node/npm -> mason (pyright, typescript-language-server)
 #   python3/pip/venv -> mason (ruff, black, isort, mypy, pylint, debugpy)
 #   unzip -> some mason packages
-EDITOR_DEPS=(curl git unzip build-essential ripgrep fzf nodejs npm python3 python3-pip python3-venv)
+TOOL_DEPS=(stow curl git unzip build-essential ripgrep fzf nodejs npm python3 python3-pip python3-venv)
 
 MODE="install"
 PREFIX="/usr/local"
@@ -150,20 +151,20 @@ if [[ "$MODE" == "check" ]]; then
                   || log "tmux ${TMUX_CUR}: OK (>= ${MIN_TMUX_VERSION})"
   if command -v dpkg >/dev/null 2>&1; then
     MISSING_DEPS=()
-    for dep in "${EDITOR_DEPS[@]}"; do
+    for dep in "${TOOL_DEPS[@]}"; do
       dpkg -s "$dep" >/dev/null 2>&1 || MISSING_DEPS+=("$dep")
     done
     if ((${#MISSING_DEPS[@]})); then
-      warn "missing editor deps: ${MISSING_DEPS[*]} — will be installed"
+      warn "missing tool deps: ${MISSING_DEPS[*]} — will be installed"
     else
-      log "editor deps (${EDITOR_DEPS[*]}): OK"
+      log "tool deps (${TOOL_DEPS[*]}): OK"
     fi
   fi
   exit 0
 fi
 
 # --- editor tool dependencies ------------------------------------------------
-ensure_apt_packages "${EDITOR_DEPS[@]}"
+ensure_apt_packages "${TOOL_DEPS[@]}"
 
 TMPDIR_BUILD="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR_BUILD"' EXIT
@@ -253,6 +254,7 @@ report_tool node
 report_tool npm
 report_tool rg
 report_tool fzf
+report_tool stow
 report_tool git
 
 if [[ "$PREFIX" == "${HOME}/.local" ]]; then
