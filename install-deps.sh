@@ -166,6 +166,33 @@ fi
 # --- editor tool dependencies ------------------------------------------------
 ensure_apt_packages "${TOOL_DEPS[@]}"
 
+# --- tree-sitter CLI (required by nvim-treesitter main to compile parsers) ---
+# Not an apt package on 24.04; install the official release binary (Linux only —
+# on macOS use `brew install tree-sitter`).
+ensure_tree_sitter_cli() {
+  command -v tree-sitter >/dev/null 2>&1 && {
+    log "tree-sitter CLI: $(tree-sitter --version | head -n1)"
+    return 0
+  }
+  if [[ "$(uname -s)" != "Linux" ]]; then
+    warn "tree-sitter CLI missing — install via 'brew install tree-sitter' (macOS)"
+    return 0
+  fi
+  local arch
+  case "$(uname -m)" in
+    x86_64) arch="x64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *) echo "ERROR: unsupported arch $(uname -m)" >&2; return 1 ;;
+  esac
+  log "installing tree-sitter CLI -> ${PREFIX}/bin"
+  curl -fsSL -o "$TMPDIR_BUILD/tree-sitter.gz" \
+    "https://github.com/tree-sitter/tree-sitter/releases/latest/download/tree-sitter-linux-${arch}.gz"
+  gunzip -f "$TMPDIR_BUILD/tree-sitter.gz"
+  $SUDO install -m 0755 "$TMPDIR_BUILD/tree-sitter" "${PREFIX}/bin/tree-sitter"
+  log "tree-sitter CLI: $(tree-sitter --version | head -n1)"
+}
+ensure_tree_sitter_cli
+
 TMPDIR_BUILD="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR_BUILD"' EXIT
 
