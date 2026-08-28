@@ -10,6 +10,20 @@ cd "$(dirname "$0")"
 # tmux: pre-create the target dir so stow file-links the configs but leaves
 #       machine-local state (tpm plugins in ~/.config/tmux/plugins) alone.
 mkdir -p "$HOME/.config/tmux"
+
+# Stow refuses to clobber real files/dirs — back up anything in the way.
+backup_if_real() {
+  if [[ -e "$1" && ! -L "$1" ]]; then
+    local bak="$1.bak"
+    [[ -e "$bak" ]] && bak="$1.bak.$(date +%Y%m%d%H%M%S)"
+    mv "$1" "$bak"
+    echo "backed up: $1 -> $bak"
+  fi
+}
+backup_if_real "$HOME/.config/nvim"
+backup_if_real "$HOME/.config/tmux/tmux.conf"
+backup_if_real "$HOME/.config/tmux/common.conf"
+
 stow --restow -t "$HOME" tmux-common
 
 if [[ "${1:-}" == "--server" ]]; then
