@@ -11,7 +11,7 @@ return {
     lazy = false,
     config = function()
       require("mason-lspconfig").setup({
-        ensure_installed = { "lua_ls", "pyright", "ruff", "ruff_lsp"}
+        ensure_installed = { "lua_ls", "pyright", "ruff" }
       })
     end
   },
@@ -43,7 +43,7 @@ return {
       lspconfig.ts_ls.setup({
         capabilities = capabilities
       })
-      lspconfig.ruff_lsp.setup({
+      lspconfig.ruff.setup({
         capabilities = capabilities
       })
       vim.keymap.set('n', 'K', vim.lsp.buf.hover, {})
