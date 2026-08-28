@@ -178,7 +178,7 @@ ensure_tree_sitter_cli() {
     return 0
   }
   if [[ "$(uname -s)" != "Linux" ]]; then
-    warn "tree-sitter CLI missing — install via 'brew install tree-sitter' (macOS)"
+    warn "tree-sitter CLI missing — macOS: 'npm install -g tree-sitter-cli' (Homebrew's formula is the library only)"
     return 0
   fi
   local arch
