@@ -22,12 +22,14 @@ return {
     "WhoIsSethDaniel/mason-tool-installer.nvim",
     lazy = false,
     config = function()
+      -- ruff (lsp) covers black/isort/flake8; conform + nvim-lint use the rest
       require("mason-tool-installer").setup({
         ensure_installed = {
-          'black',
+          'stylua',
+          'prettierd',
+          'eslint_d',
+          'rubocop',
           'debugpy',
-          'flake8',
-          'isort',
           'mypy',
           'pylint',
         },
@@ -37,8 +39,9 @@ return {
   {
     "neovim/nvim-lspconfig",
     lazy = false,
+    dependencies = { "saghen/blink.cmp" },
     config = function()
-      local capabilities = require("cmp_nvim_lsp").default_capabilities()
+      local capabilities = require("blink.cmp").get_lsp_capabilities()
 
       -- Native 0.11+ LSP API (require('lspconfig') framework is deprecated)
       vim.lsp.config("*", { capabilities = capabilities })
