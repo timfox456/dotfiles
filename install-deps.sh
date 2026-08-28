@@ -163,6 +163,9 @@ if [[ "$MODE" == "check" ]]; then
   exit 0
 fi
 
+TMPDIR_BUILD="$(mktemp -d)"
+trap 'rm -rf "$TMPDIR_BUILD"' EXIT
+
 # --- editor tool dependencies ------------------------------------------------
 ensure_apt_packages "${TOOL_DEPS[@]}"
 
@@ -192,9 +195,6 @@ ensure_tree_sitter_cli() {
   log "tree-sitter CLI: $(tree-sitter --version | head -n1)"
 }
 ensure_tree_sitter_cli
-
-TMPDIR_BUILD="$(mktemp -d)"
-trap 'rm -rf "$TMPDIR_BUILD"' EXIT
 
 # --- neovim: official release tarball ---------------------------------------
 if (( NEED_NVIM )); then
