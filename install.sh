@@ -19,3 +19,15 @@ else
   stow --restow -t "$HOME" nvim tmux
   echo "Linked: nvim, tmux-common, tmux (desktop)"
 fi
+
+# Finish tpm setup now that the config (with the @plugin list) is linked.
+TPM_INSTALL=""
+for cand in "$HOME/.config/tmux/plugins/tpm/bin/install_plugins" \
+            "$HOME/.config/tmux/plugins/tpm/bin/install_plugins.sh"; do
+  [[ -x "$cand" ]] && { TPM_INSTALL="$cand"; break; }
+done
+if [[ -n "$TPM_INSTALL" ]]; then
+  "$TPM_INSTALL" >/dev/null 2>&1 || echo "note: tpm plugin install failed — press prefix + I inside tmux"
+else
+  echo "note: tpm not found — run ./install-deps.sh, then prefix + I inside tmux"
+fi
