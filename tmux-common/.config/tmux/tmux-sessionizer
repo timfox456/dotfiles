@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# ThePrimeagen-style tmux sessionizer: pick a project with fzf and switch to
+# (or create) a tmux session named after it. Project root is ~/timfox456
+# (override with PROJECTS_DIR).
+set -uo pipefail
+
+PROJECTS_DIR="${PROJECTS_DIR:-$HOME/timfox456}"
+
+if [[ $# -eq 1 ]]; then
+  selected="$1"
+else
+  selected="$(find "$PROJECTS_DIR" -mindepth 1 -maxdepth 1 -type d | sort | fzf)"
+fi
+
+[[ -z "${selected:-}" ]] && exit 0
+
+selected_name="$(basename "$selected" | tr . _)"
+
+tmux_running() {
+  pgrep -x tmux >/dev/null 2>&1
+}
+
+# Not inside tmux and no server running: start one in this project.
+if [[ -z "${TMUX:-}" ]] && ! tmux_running; then
+  tmux new-session -s "$selected_name" -c "$selected"
+  exit 0
+fi
+
+if tmux has-session -t "=$selected_name" 2>/dev/null; then
+  tmux switch-client -t "=$selected_name"
+elif tmux has-session -t "$selected_name" 2>/dev/null; then
+  tmux switch-client -t "$selected_name"
+else
+  # Window 1: nvim in the project; window 2: plain shell
+  tmux new-session -ds "$selected_name" -c "$selected" -n editor "nvim"
+  tmux new-window -t "$selected_name:" -c "$selected" -n shell
+  tmux select-window -t "$selected_name:1"
+  tmux switch-client -t "$selected_name"
+fi
