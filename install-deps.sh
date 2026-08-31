@@ -265,39 +265,54 @@ ensure_zerostack() {
 }
 ensure_zerostack
 
-# --- neovim: official release tarball ---------------------------------------
+# --- neovim: official release tarball (Linux) / Homebrew (macOS) ------------
 if (( NEED_NVIM )); then
   command -v nvim >/dev/null 2>&1 && remove_apt_package nvim
-  case "$(uname -m)" in
-    x86_64)          NVIM_ARCH="x86_64" ;;
-    aarch64|arm64)   NVIM_ARCH="aarch64" ;;
-    *) echo "ERROR: unsupported arch $(uname -m)" >&2; exit 1 ;;
-  esac
-  log "installing neovim ${NVIM_VERSION} (${NVIM_ARCH}) -> ${PREFIX}"
-  curl -fsSL -o "$TMPDIR_BUILD/nvim.tar.gz" \
-    "https://github.com/neovim/neovim/releases/download/v${NVIM_VERSION}/nvim-linux-${NVIM_ARCH}.tar.gz"
-  $SUDO rm -rf "${PREFIX}/opt/nvim-linux-${NVIM_ARCH}"
-  $SUDO mkdir -p "${PREFIX}/opt" "${PREFIX}/bin"
-  $SUDO tar -C "${PREFIX}/opt" -xzf "$TMPDIR_BUILD/nvim.tar.gz"
-  $SUDO ln -sfn "${PREFIX}/opt/nvim-linux-${NVIM_ARCH}/bin/nvim" "${PREFIX}/bin/nvim"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    if command -v brew >/dev/null 2>&1; then
+      log "installing neovim via Homebrew"
+      brew install neovim || echo "ERROR: brew install neovim failed" >&2
+    else
+      echo "ERROR: macOS without Homebrew — install neovim manually (>= ${MIN_NVIM_VERSION})" >&2
+      exit 1
+    fi
+  else
+    case "$(uname -m)" in
+      x86_64)          NVIM_ARCH="x86_64" ;;
+      aarch64|arm64)   NVIM_ARCH="aarch64" ;;
+      *) echo "ERROR: unsupported arch $(uname -m)" >&2; exit 1 ;;
+    esac
+    log "installing neovim ${NVIM_VERSION} (${NVIM_ARCH}) -> ${PREFIX}"
+    curl -fsSL -o "$TMPDIR_BUILD/nvim.tar.gz" \
+      "https://github.com/neovim/neovim/releases/download/v${NVIM_VERSION}/nvim-linux-${NVIM_ARCH}.tar.gz"
+    $SUDO rm -rf "${PREFIX}/opt/nvim-linux-${NVIM_ARCH}"
+    $SUDO mkdir -p "${PREFIX}/opt" "${PREFIX}/bin"
+    $SUDO tar -C "${PREFIX}/opt" -xzf "$TMPDIR_BUILD/nvim.tar.gz"
+    $SUDO ln -sfn "${PREFIX}/opt/nvim-linux-${NVIM_ARCH}/bin/nvim" "${PREFIX}/bin/nvim"
+  fi
 else
   log "nvim ${NVIM_CUR}: up to date, skipping"
 fi
 
-# --- tmux: build from official release tarball ------------------------------
+# --- tmux: Homebrew (macOS) / build from release tarball (Linux) -------------
 if (( NEED_TMUX )); then
   command -v tmux >/dev/null 2>&1 && remove_apt_package tmux
-  log "building tmux ${TMUX_VERSION} -> ${PREFIX}"
-  ensure_apt_packages libevent-dev libncurses-dev bison
-  curl -fsSL -o "$TMPDIR_BUILD/tmux.tar.gz" \
-    "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz"
-  tar -C "$TMPDIR_BUILD" -xzf "$TMPDIR_BUILD/tmux.tar.gz"
-  (
-    cd "$TMPDIR_BUILD/tmux-${TMUX_VERSION}"
-    ./configure --prefix="$PREFIX"
-    make -j"$(nproc)"
-    $SUDO make install
-  )
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    log "installing tmux via Homebrew"
+    brew install tmux
+  else
+    log "building tmux ${TMUX_VERSION} -> ${PREFIX}"
+    ensure_apt_packages libevent-dev libncurses-dev bison
+    curl -fsSL -o "$TMPDIR_BUILD/tmux.tar.gz" \
+      "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz"
+    tar -C "$TMPDIR_BUILD" -xzf "$TMPDIR_BUILD/tmux.tar.gz"
+    (
+      cd "$TMPDIR_BUILD/tmux-${TMUX_VERSION}"
+      ./configure --prefix="$PREFIX"
+      make -j"$(nproc)"
+      $SUDO make install
+    )
+  fi
 else
   log "tmux ${TMUX_CUR}: up to date, skipping"
 fi
