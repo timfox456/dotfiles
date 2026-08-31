@@ -18,7 +18,8 @@ return {
     },
   },
   {
-    "Exafunction/codeium.nvim",
+    -- Codeium/Windsurf (rebranded after Cognition acquisition; module stays "codeium")
+    "Exafunction/windsurf.nvim",
     event = "InsertEnter",
     dependencies = { "nvim-lua/plenary.nvim" },
     keys = {
