@@ -31,7 +31,8 @@ MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs 
 #   node/npm -> mason (pyright, typescript-language-server)
 #   python3/pip/venv -> mason (ruff, black, isort, mypy, pylint, debugpy)
 #   unzip -> some mason packages
-TOOL_DEPS=(stow curl git unzip build-essential ripgrep fzf nodejs npm python3 python3-pip python3-venv)
+#   mosh -> roaming/persistent SSH sessions (pairs with tmux; needs UDP 60000-61000)
+TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop nodejs npm python3 python3-pip python3-venv)
 
 MODE="install"
 PREFIX="/usr/local"

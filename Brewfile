@@ -3,9 +3,11 @@
 
 # Core
 brew "stow"
+brew "git"
 brew "gh"
 brew "ripgrep"
 brew "fzf"
+brew "mosh"
 
 # Editors / agents
 brew "neovim"
