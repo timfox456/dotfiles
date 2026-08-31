@@ -20,11 +20,21 @@ return {
     -- use neocodeium instead of a blink source integration.
     "monkoose/neocodeium",
     event = "InsertEnter",
-    cmd = "NeoCodeium",
+    cmd = { "NeoCodeium", "CodeiumAuth", "CodeiumToggle" },
     keys = {
       { "<leader>ua", "<cmd>NeoCodeium toggle<cr>", desc = "Toggle Codeium" },
     },
     opts = {},
+    config = function(_, opts)
+      require("neocodeium").setup(opts)
+      -- forgiving aliases (neocodeium's own command is case-sensitive "NeoCodeium")
+      vim.api.nvim_create_user_command("CodeiumAuth", function()
+        require("neocodeium.commands").auth()
+      end, { desc = "Authenticate Codeium" })
+      vim.api.nvim_create_user_command("CodeiumToggle", function()
+        require("neocodeium.commands").toggle()
+      end, { desc = "Toggle Codeium" })
+    end,
   },
   {
     "folke/lazydev.nvim",
