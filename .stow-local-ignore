@@ -4,5 +4,7 @@ install\.sh
 install-deps\.sh
 bootstrap\.sh
 Brewfile
+Brewfile\.lock\.json
 \.bak$
+\.DS_Store
 terminfo

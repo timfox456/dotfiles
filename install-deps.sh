@@ -149,7 +149,9 @@ ensure_brew_bundle() {
     return 0
   fi
   log "ensuring macOS tooling via Brewfile"
-  brew bundle --file=Brewfile --no-lock \
+  # NOTE: no --no-lock — older brew versions reject it. The generated
+  # Brewfile.lock.json is gitignored instead.
+  brew bundle --file=Brewfile \
     || warn "brew bundle failed — install missing tools manually (see Brewfile)"
 }
 ensure_brew_bundle
