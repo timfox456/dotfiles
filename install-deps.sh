@@ -18,6 +18,8 @@ set -euo pipefail
 
 NVIM_VERSION="${NVIM_VERSION:-0.12.4}"
 TMUX_VERSION="${TMUX_VERSION:-3.7c}"
+NVM_VERSION="${NVM_VERSION:-v0.40.7}"
+UV_VERSION="${UV_VERSION:-0.12.7}"
 MIN_NVIM_VERSION="${MIN_NVIM_VERSION:-0.11.0}"   # vim.lsp.config / vim.lsp.enable era
 MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs >= 3.3
 
@@ -277,6 +279,38 @@ ensure_zerostack() {
     warn "remember: export OPENROUTER_API_KEY=\"sk-or-...\" in ~/.bashrc (per machine)"
 }
 ensure_zerostack
+
+# --- nvm + uv (per-machine dev tooling; user-local, no sudo) -----------------
+ensure_nvm() {
+  if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+    log "nvm: $(bash -c '. "$HOME/.nvm/nvm.sh" && nvm --version' 2>/dev/null | head -n1)"
+  else
+    log "installing nvm ${NVM_VERSION} -> ~/.nvm"
+    # Pin NVM_DIR explicitly: never inherit it from the calling environment,
+    # or the installer could target the wrong home.
+    curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" \
+      | NVM_DIR="$HOME/.nvm" METHOD=git bash \
+      || warn "nvm install failed — see https://github.com/nvm-sh/nvm"
+  fi
+}
+
+ensure_uv() {
+  if command -v uv >/dev/null 2>&1; then
+    local cur
+    cur="$(uv --version 2>&1 | awk '{print $2}')"
+    if [[ "$cur" == "$UV_VERSION" ]]; then
+      log "uv: $cur"
+      return 0
+    fi
+    log "uv: upgrading $cur -> ${UV_VERSION}"
+  else
+    log "installing uv ${UV_VERSION} -> ~/.local/bin"
+  fi
+  curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh \
+    || warn "uv install failed — see https://docs.astral.sh/uv/"
+}
+ensure_nvm
+ensure_uv
 
 # --- neovim: official release tarball (Linux) / Homebrew (macOS) ------------
 if (( NEED_NVIM )); then
