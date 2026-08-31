@@ -14,6 +14,12 @@ brew "neovim"
 brew "tmux"
 brew "tree-sitter-cli"
 
+# Forge & cloud CLIs (Linux: apt/installer — see install-deps.sh)
+brew "glab"
+brew "aws"
+brew "azure-cli"
+brew "google-cloud-sdk"
+
 # Dev tooling
 brew "shellcheck"
 brew "actionlint"

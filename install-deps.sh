@@ -32,7 +32,8 @@ MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs 
 #   python3/pip/venv -> mason (ruff, black, isort, mypy, pylint, debugpy)
 #   unzip -> some mason packages
 #   mosh -> roaming/persistent SSH sessions (pairs with tmux; needs UDP 60000-61000)
-TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop nodejs npm python3 python3-pip python3-venv)
+#   gh/glab -> forge CLIs
+TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop gh glab nodejs npm python3 python3-pip python3-venv)
 
 MODE="install"
 PREFIX="/usr/local"
@@ -318,6 +319,76 @@ ensure_uv() {
 }
 ensure_nvm
 ensure_uv
+
+# --- cloud & forge CLIs ------------------------------------------------------
+# gh/glab come from apt via TOOL_DEPS. aws/az/gcloud have no current distro
+# packages, so each uses its vendor installer below. macOS gets all of them
+# from the Brewfile instead. Credentials are per-machine (~/.aws, ~/.azure,
+# ~/.config/gcloud) — authenticate with `aws sso login` / `az login` /
+# `gcloud auth login`; never in this repo.
+
+ensure_aws_cli() {
+  if command -v aws >/dev/null 2>&1; then
+    log "aws: $(aws --version 2>&1 | head -n1)"
+    return 0
+  fi
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    warn "aws CLI missing — install via Brewfile (brew install awscli)"
+    return 0
+  fi
+  local arch
+  case "$(uname -m)" in
+    x86_64) arch="x86_64" ;;
+    aarch64|arm64) arch="aarch64" ;;
+    *) echo "ERROR: unsupported arch $(uname -m)" >&2; return 1 ;;
+  esac
+  log "installing AWS CLI v2 (latest) -> ${PREFIX}"
+  curl -fsSL -o "$TMPDIR_BUILD/awscliv2.zip" \
+    "https://awscli.amazonaws.com/awscli-exe-linux-${arch}.zip"
+  unzip -oq "$TMPDIR_BUILD/awscliv2.zip" -d "$TMPDIR_BUILD"
+  $SUDO "$TMPDIR_BUILD/aws/install" --update
+  log "aws: $(aws --version 2>&1 | head -n1)"
+}
+
+ensure_azure_cli() {
+  if command -v az >/dev/null 2>&1; then
+    log "az: $(az version --output tsv 2>/dev/null | head -n1)"
+    return 0
+  fi
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    warn "az CLI missing — install via Brewfile (brew install azure-cli)"
+    return 0
+  fi
+  log "installing Azure CLI (aka.ms script — adds Microsoft apt repo)"
+  # arm64: MS publishes arm64 debs for recent Ubuntu releases; on unsupported
+  # arches this fails and the warn below is the signal.
+  curl -sL https://aka.ms/InstallAzureCLIDeb | $SUDO bash \
+    || warn "azure cli install failed — see https://learn.microsoft.com/cli/azure/install-azure-cli-linux"
+}
+
+ensure_gcloud() {
+  if command -v gcloud >/dev/null 2>&1; then
+    log "gcloud: $(gcloud --version 2>&1 | head -n1)"
+    return 0
+  fi
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    warn "gcloud missing — install via Brewfile (brew install --cask google-cloud-sdk)"
+    return 0
+  fi
+  log "installing Google Cloud SDK (Google apt repo)"
+  ensure_apt_packages gnupg
+  $SUDO install -d /usr/share/keyrings
+  curl -fsSL "https://packages.cloud.google.com/apt/doc/apt-key.gpg" \
+    | $SUDO gpg --dearmor --yes -o /usr/share/keyrings/cloud.google.gpg
+  echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
+    | $SUDO tee /etc/apt/sources.list.d/google-cloud-sdk.list >/dev/null
+  $SUDO apt-get update -qq
+  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq google-cloud-cli \
+    || warn "gcloud install failed — see https://cloud.google.com/sdk/docs/install-apt"
+}
+ensure_aws_cli
+ensure_azure_cli
+ensure_gcloud
 
 # --- neovim: official release tarball (Linux) / Homebrew (macOS) ------------
 if (( NEED_NVIM )); then
