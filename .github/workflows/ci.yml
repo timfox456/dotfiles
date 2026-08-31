@@ -1,0 +1,99 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install lint tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck lua5.4 stow tmux
+
+      - name: bash syntax (bash -n)
+        run: |
+          bash -n install.sh
+          bash -n install-deps.sh
+          bash -n tmux-common/.config/tmux/tmux-sessionizer
+
+      - name: shellcheck
+        run: shellcheck install.sh install-deps.sh tmux-common/.config/tmux/tmux-sessionizer
+
+      - name: lua syntax (luac)
+        run: find nvim/.config/nvim/lua -name '*.lua' -print0 | xargs -0 -n1 luac5.4 -p
+
+      - name: opencode.json validity
+        run: python3 -m json.tool opencode/.config/opencode/opencode.json > /dev/null
+
+  ubuntu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run install-deps.sh (dogfood)
+        run: ./install-deps.sh
+
+      - name: Stow server variant
+        run: ./install.sh --server
+
+      - name: Verify stow links
+        run: |
+          test -L "$HOME/.config/nvim"
+          test -L "$HOME/.config/tmux/tmux.conf"
+          test -f "$HOME/.config/zerostack/config.toml"
+          test -L "$HOME/.config/ghostty/config"
+          test -L "$HOME/.config/opencode/opencode.json"
+          test -L "$HOME/.config/git/ignore"
+          test -L "$HOME/.gitconfig"
+
+      - name: tmux parse test (server variant)
+        run: |
+          tmux -L citest -f "$HOME/.config/tmux/tmux.conf" new-session -d
+          tmux -L citest show-options -g prefix | grep -q "C-a"
+          tmux -L citest kill-server
+
+      - name: nvim headless boot + plugin sync
+        timeout-minutes: 15
+        run: |
+          nvim --headless "+Lazy! sync" +qa
+          nvim --headless +qa
+
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: brew install stow shellcheck lua tmux
+
+      - name: Run install-deps.sh (dogfood)
+        run: ./install-deps.sh
+
+      - name: Stow desktop variant
+        run: ./install.sh
+
+      - name: Verify stow links
+        run: |
+          test -L "$HOME/.config/nvim"
+          test -L "$HOME/.config/tmux/tmux.conf"
+          test -L "$HOME/.gitconfig"
+
+      - name: tmux parse test (desktop variant)
+        run: |
+          tmux -L citest -f "$HOME/.config/tmux/tmux.conf" new-session -d
+          tmux -L citest show-options -g prefix | grep -q "C-b"
+          tmux -L citest kill-server
+
+      - name: nvim headless boot + plugin sync
+        timeout-minutes: 15
+        run: |
+          nvim --headless "+Lazy! sync" +qa
+          nvim --headless +qa

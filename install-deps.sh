@@ -60,7 +60,7 @@ ver_fields() {
   local v="${1#v}"
   v="${v//[!0-9a-z.]/}"
   local letter=""
-  [[ "$v" =~ ([a-z]+)$ ]] && { letter="${BASH_REMATCH[1]}"; v="${v%$letter}"; }
+      [[ "$v" =~ ([a-z]+)$ ]] && { letter="${BASH_REMATCH[1]}"; v="${v%"$letter"}"; }
   v="${v%.}"
   local -a parts
   IFS='.' read -r -a parts <<< "$v"
@@ -98,6 +98,8 @@ remove_apt_package() {
     return 0
   fi
   log "removing apt-installed package(s) providing $path: $(echo "$pkgs" | tr '\n' ' ')"
+  # $pkgs is intentionally word-split: multiple package names, one per line
+  # shellcheck disable=SC2086
   $SUDO env DEBIAN_FRONTEND=noninteractive apt-get remove -y -qq $pkgs \
     || warn "apt-get remove failed — our install still wins via PATH (/usr/local/bin precedes /usr/bin)"
 }
@@ -145,10 +147,16 @@ fi
 if (( FORCE )); then NEED_NVIM=1 NEED_TMUX=1; fi
 
 if [[ "$MODE" == "check" ]]; then
-  (( NEED_NVIM )) && warn "nvim ${NVIM_CUR:-missing}: BELOW minimum ${MIN_NVIM_VERSION} — run without --check to install ${NVIM_VERSION}" \
-                    || log "nvim ${NVIM_CUR}: OK (>= ${MIN_NVIM_VERSION})"
-  (( NEED_TMUX )) && warn "tmux ${TMUX_CUR:-missing}: BELOW minimum ${MIN_TMUX_VERSION} — run without --check to install ${TMUX_VERSION}" \
-                  || log "tmux ${TMUX_CUR}: OK (>= ${MIN_TMUX_VERSION})"
+  if (( NEED_NVIM )); then
+    warn "nvim ${NVIM_CUR:-missing}: BELOW minimum ${MIN_NVIM_VERSION} — run without --check to install ${NVIM_VERSION}"
+  else
+    log "nvim ${NVIM_CUR}: OK (>= ${MIN_NVIM_VERSION})"
+  fi
+  if (( NEED_TMUX )); then
+    warn "tmux ${TMUX_CUR:-missing}: BELOW minimum ${MIN_TMUX_VERSION} — run without --check to install ${TMUX_VERSION}"
+  else
+    log "tmux ${TMUX_CUR}: OK (>= ${MIN_TMUX_VERSION})"
+  fi
   if command -v dpkg >/dev/null 2>&1; then
     MISSING_DEPS=()
     for dep in "${TOOL_DEPS[@]}"; do
