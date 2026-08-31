@@ -3,5 +3,24 @@
   "model": "opencode-go/mimo-v2.5-pro",
   "small_model": "opencode-go/glm-5.3-flash",
   "share": "disabled",
-  "autoupdate": true
+  "autoupdate": true,
+  "instructions": ["~/.config/opencode/instructions.md"],
+  "permission": {
+    "edit": "allow",
+    "webfetch": "allow",
+    "bash": {
+      "rm -rf *": "deny",
+      "sudo *": "ask",
+      "git push*": "ask",
+      "*": "allow"
+    }
+  },
+  "compaction": { "prune": true },
+  "agent": {
+    "general": { "model": "opencode-go/glm-5.3-flash" },
+    "explore": { "model": "opencode-go/glm-5.3-flash" },
+    "summary": { "model": "opencode-go/glm-5.3-flash" },
+    "compaction": { "model": "opencode-go/glm-5.3-flash" },
+    "title": { "model": "opencode-go/mimo-v2.5" }
+  }
 }
