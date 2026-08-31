@@ -20,6 +20,7 @@ NVIM_VERSION="${NVIM_VERSION:-0.12.4}"
 TMUX_VERSION="${TMUX_VERSION:-3.7c}"
 NVM_VERSION="${NVM_VERSION:-v0.40.7}"
 UV_VERSION="${UV_VERSION:-0.12.7}"
+MIN_TS_CLI_VERSION="${MIN_TS_CLI_VERSION:-0.24.0}"
 MIN_NVIM_VERSION="${MIN_NVIM_VERSION:-0.11.0}"   # vim.lsp.config / vim.lsp.enable era
 MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs >= 3.3
 
@@ -196,10 +197,15 @@ ensure_apt_packages "${TOOL_DEPS[@]}"
 # Linux: official release binary. macOS: brew formula `tree-sitter-cli`
 # (NOT `tree-sitter`, which is only the parser library).
 ensure_tree_sitter_cli() {
-  command -v tree-sitter >/dev/null 2>&1 && {
-    log "tree-sitter CLI: $(tree-sitter --version | head -n1)"
-    return 0
-  }
+  if command -v tree-sitter >/dev/null 2>&1; then
+    local cur
+    cur="$(tree-sitter --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n1)"
+    if [[ -n "$cur" ]] && ver_ge "$cur" "${MIN_TS_CLI_VERSION}"; then
+      log "tree-sitter CLI: $cur (>= ${MIN_TS_CLI_VERSION})"
+      return 0
+    fi
+    log "tree-sitter CLI $cur: below minimum ${MIN_TS_CLI_VERSION} — reinstalling"
+  fi
   if [[ "$(uname -s)" == "Darwin" ]]; then
     if command -v brew >/dev/null 2>&1; then
       log "installing tree-sitter CLI via Homebrew"
@@ -227,22 +233,20 @@ ensure_tree_sitter_cli
 # --- typescript-language-server (removed from mason registry; npm global) ----
 ensure_npm_globals() {
   command -v npm >/dev/null 2>&1 || { warn "npm not found — skipping typescript-language-server install"; return 0; }
-  if command -v typescript-language-server >/dev/null 2>&1; then
-    log "typescript-language-server: $(typescript-language-server --version 2>&1 | head -n1)"
-    return 0
-  fi
-  local npm_prefix
-  npm_prefix="$(npm config get prefix)"
-  log "installing typescript-language-server + typescript (npm global)"
-  # typescript@5 pinned: TS 7+ dropped lib/tsserver.js, which typescript-language-server requires
-  if [[ -w "$npm_prefix/lib" || -w "$npm_prefix" ]]; then
+  # npm -g install is idempotent: upgrades when newer exists, quick no-op when
+  # current. This also repairs bad installs (e.g. typescript@7 alongside a
+  # typescript-language-server that requires typescript@5).
+  log "ensuring typescript@5 + typescript-language-server (npm global)"
+  if [[ -w "$(npm config get prefix)/lib" || -w "$(npm config get prefix)" ]]; then
     npm install -g -q "typescript@5" typescript-language-server \
       || warn "npm install failed — run 'npm i -g typescript@5 typescript-language-server' manually"
   else
-    log "npm prefix $npm_prefix not writable — using sudo"
+    log "npm prefix not writable — using sudo"
     $SUDO env npm install -g -q "typescript@5" typescript-language-server \
       || warn "npm install failed — run 'sudo npm i -g typescript@5 typescript-language-server' manually"
   fi
+  command -v typescript-language-server >/dev/null 2>&1 && \
+    log "typescript-language-server: $(typescript-language-server --version 2>&1 | head -n1)"
 }
 ensure_npm_globals
 
@@ -282,10 +286,12 @@ ensure_zerostack
 
 # --- nvm + uv (per-machine dev tooling; user-local, no sudo) -----------------
 ensure_nvm() {
-  if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-    log "nvm: $(bash -c '. "$HOME/.nvm/nvm.sh" && nvm --version' 2>/dev/null | head -n1)"
+  local installed
+  installed="$(bash -c '. "$HOME/.nvm/nvm.sh" && nvm --version' 2>/dev/null | head -n1)"
+  if [[ -n "$installed" ]] && ver_ge "$installed" "${NVM_VERSION#v}"; then
+    log "nvm: $installed (>= ${NVM_VERSION})"
   else
-    log "installing nvm ${NVM_VERSION} -> ~/.nvm"
+    log "installing nvm ${NVM_VERSION}${installed:+ (upgrading from $installed)} -> ~/.nvm"
     # Pin NVM_DIR explicitly: never inherit it from the calling environment,
     # or the installer could target the wrong home.
     curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" \
