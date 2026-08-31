@@ -223,6 +223,23 @@ ensure_npm_globals() {
 }
 ensure_npm_globals
 
+# --- ghostty terminfo (so TERM=xterm-ghostty works on servers) ---------------
+# Vendored terminfo source; installs user-local to ~/.terminfo (no sudo).
+ensure_ghostty_terminfo() {
+  if infocmp -x xterm-ghostty >/dev/null 2>&1; then
+    log "terminfo xterm-ghostty: present"
+    return 0
+  fi
+  command -v tic >/dev/null 2>&1 || { warn "tic not found — skipping ghostty terminfo install"; return 0; }
+  if [[ ! -f terminfo/xterm-ghostty.terminfo ]]; then
+    warn "terminfo/xterm-ghostty.terminfo missing from repo — skipping"
+    return 0
+  fi
+  tic -x terminfo/xterm-ghostty.terminfo \
+    && log "installed terminfo xterm-ghostty -> $HOME/.terminfo"
+}
+ensure_ghostty_terminfo
+
 # --- neovim: official release tarball ---------------------------------------
 if (( NEED_NVIM )); then
   command -v nvim >/dev/null 2>&1 && remove_apt_package nvim
