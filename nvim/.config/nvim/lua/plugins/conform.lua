@@ -32,13 +32,15 @@ return {
     "mfussenegger/nvim-lint",
     event = { "BufReadPre", "BufNewFile" },
     config = function()
-      require("lint").linters_by_ft = {
-        javascript = { "eslint_d" },
-        typescript = { "eslint_d" },
-        javascriptreact = { "eslint_d" },
-        typescriptreact = { "eslint_d" },
-        ruby = { "rubocop" },
-      }
+      -- eslint_d/rubocop are node/gem daemons — skip on low-memory instances
+      require("lint").linters_by_ft = require("lowmem").tiny() and {}
+        or {
+          javascript = { "eslint_d" },
+          typescript = { "eslint_d" },
+          javascriptreact = { "eslint_d" },
+          typescriptreact = { "eslint_d" },
+          ruby = { "rubocop" },
+        }
       vim.api.nvim_create_autocmd({ "BufWritePost", "BufEnter" }, {
         callback = function() require("lint").try_lint() end,
       })

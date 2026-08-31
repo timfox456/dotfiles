@@ -18,9 +18,11 @@ return {
     -- Codeium/Windsurf backend via neocodeium (ghost-text style, engine-independent).
     -- NOTE: Exafunction's windsurf.nvim crashes without nvim-cmp present, so we
     -- use neocodeium instead of a blink source integration.
+    -- Skipped on low-memory instances (its language server is a persistent binary).
     "monkoose/neocodeium",
     event = "InsertEnter",
     cmd = { "NeoCodeium", "CodeiumAuth", "CodeiumToggle" },
+    cond = function() return not require("lowmem").tiny() end,
     keys = {
       { "<leader>ua", "<cmd>NeoCodeium toggle<cr>", desc = "Toggle Codeium" },
     },

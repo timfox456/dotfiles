@@ -1,3 +1,6 @@
+-- Low-memory profile: computed once at spec-load, shared by all config blocks
+local is_tiny = require("lowmem").tiny()
+
 return {
   {
     "williamboman/mason.nvim",
@@ -13,8 +16,13 @@ return {
     config = function()
       -- NOTE: ts_ls is NOT here — typescript-language-server was removed from the
       -- mason registry; it's installed globally via npm in install-deps.sh instead.
+      -- automatic_enable: mason-lspconfig auto-enables all INSTALLED servers —
+      -- restrict it on tiny instances so pyright (installed on other machines)
+      -- never attaches.
       require("mason-lspconfig").setup({
-        ensure_installed = { "lua_ls", "pyright", "ruff" }
+        ensure_installed = is_tiny and { "lua_ls", "ruff" }
+          or { "lua_ls", "pyright", "ruff" },
+        automatic_enable = is_tiny and { "lua_ls", "ruff" } or true,
       })
     end
   },
@@ -24,15 +32,18 @@ return {
     config = function()
       -- ruff (lsp) covers black/isort/flake8; conform + nvim-lint use the rest
       require("mason-tool-installer").setup({
-        ensure_installed = {
-          'stylua',
-          'prettierd',
-          'eslint_d',
-          'rubocop',
-          'debugpy',
-          'mypy',
-          'pylint',
-        },
+        -- ruff (lsp) covers black/isort/flake8; conform + nvim-lint use the rest.
+        -- tiny instances: stylua only — skip the node/python tool installs.
+        ensure_installed = is_tiny and { "stylua" }
+          or {
+            'stylua',
+            'prettierd',
+            'eslint_d',
+            'rubocop',
+            'debugpy',
+            'mypy',
+            'pylint',
+          },
       })
     end
   },
@@ -75,7 +86,17 @@ return {
         },
       })
 
-      vim.lsp.enable({ "lua_ls", "ts_ls", "pyright", "ruff" })
+      -- pyright/ts_ls are node processes (100-500MB on real projects): only
+      -- enable on machines that can afford them. ruff (Rust) is cheap enough
+      -- for tiny instances and covers python diagnostics/formatting.
+      vim.lsp.enable(is_tiny and { "lua_ls", "ruff" }
+        or { "lua_ls", "ts_ls", "pyright", "ruff" })
+
+      if is_tiny then
+        vim.schedule(function()
+          vim.notify("nvim: low-memory profile active (pyright/ts_ls off)", vim.log.levels.INFO)
+        end)
+      end
 
       vim.keymap.set('n', 'K', vim.lsp.buf.hover, {})
       vim.keymap.set('n', '<leader>gd', vim.lsp.buf.definition, {})
