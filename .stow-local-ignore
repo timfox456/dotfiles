@@ -1,5 +1,8 @@
 README\.md
+AGENTS\.md
 install\.sh
 install-deps\.sh
+bootstrap\.sh
+Brewfile
 \.bak$
 terminfo

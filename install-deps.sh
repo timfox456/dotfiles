@@ -135,6 +135,19 @@ NEED_NVIM=0 NEED_TMUX=0
 NVIM_CUR="$(current_nvim_version || true)"
 TMUX_CUR="$(current_tmux_version || true)"
 
+# macOS: declarative brew tooling (Brewfile) BEFORE version checks, so
+# freshly installed nvim/tmux satisfy the minimums and the Linux paths
+# (tarball/source-build) never trigger on a Mac.
+ensure_brew_bundle() {
+  if [[ "$(uname -s)" != "Darwin" ]] || ! command -v brew >/dev/null 2>&1; then
+    return 0
+  fi
+  log "ensuring macOS tooling via Brewfile"
+  brew bundle --file=Brewfile --no-lock \
+    || warn "brew bundle failed — install missing tools manually (see Brewfile)"
+}
+ensure_brew_bundle
+
 log "detected: nvim=${NVIM_CUR:-missing}, tmux=${TMUX_CUR:-missing}"
 log "targets:  nvim>=${MIN_NVIM_VERSION} (install ${NVIM_VERSION}), tmux>=${MIN_TMUX_VERSION} (install ${TMUX_VERSION})"
 

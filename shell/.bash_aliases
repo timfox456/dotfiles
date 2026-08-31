@@ -11,7 +11,7 @@ alias la='ls -A'
 alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
 
 # tmux sessionizer: fzf project switcher (same as M-s inside tmux)
-alias s='$HOME/.config/tmux/tmux-sessionizer'
+alias s='$HOME/.local/bin/tmux-sessionizer'
 
 # Per-machine secrets (API keys etc.) — copied from secrets.local.example,
 # never synced, never committed. zerostack reads OPENROUTER_API_KEY from here.

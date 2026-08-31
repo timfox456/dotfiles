@@ -14,14 +14,21 @@ sudo apt install stow    # Ubuntu
 ./install.sh --server    # servers (tmux prefix C-a)
 ```
 
+Or bootstrap a fresh machine in one shot:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/timfox456/dotfiles/main/bootstrap.sh | bash -s -- --server
+```
+
 - `nvim/` — plugins pinned in `nvim/lazy-lock.json`; run `:Lazy restore` after
   cloning on a new machine. Low-RAM instances (< 2GB) automatically skip
   heavyweight LSP servers (pyright/ts_ls) and Codeium; override with
   `NVIM_TINY=1` or `NVIM_TINY=0`.
 - `tmux/` vs `tmux-server/` — only one gets linked (both want
   `~/.config/tmux/tmux.conf`). Shared settings in `tmux-common/`.
-  Sessionizer: `M-s` (no prefix) switches/creates a project session from
-  `~/timfox456` (override: `PROJECTS_DIR`).
+  Sessionizer: `M-s` (no prefix) or the `s` alias switches/creates a project
+  session from `~/timfox456` (override: `PROJECTS_DIR`). Script lives in
+  `bin/.local/bin/`.
 - `ghostty/` — auto-attaches tmux, Catppuccin Mocha theme.
 - `opencode/` — opencode Go/Zen config. Auth keys are per-machine in
   `~/.local/share/opencode/auth.json` (`opencode auth login`).
