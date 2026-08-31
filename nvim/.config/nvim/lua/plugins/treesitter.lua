@@ -7,8 +7,20 @@ return {
       auto_install = true,
     })
     require("nvim-treesitter").install({
-      'lua', 'python', 'regex', 'bash', 'markdown', 'markdown_inline',
-      'sql', 'vimdoc', 'javascript', 'typescript', 'tsx', 'json', 'html', 'yaml',
+      "lua",
+      "python",
+      "regex",
+      "bash",
+      "markdown",
+      "markdown_inline",
+      "sql",
+      "vimdoc",
+      "javascript",
+      "typescript",
+      "tsx",
+      "json",
+      "html",
+      "yaml",
     })
 
     -- highlight/indent modules are gone in the main-branch rewrite:

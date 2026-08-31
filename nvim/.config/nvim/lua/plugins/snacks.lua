@@ -13,8 +13,21 @@ return {
       quickfile = { enabled = true },
     },
     keys = {
-      { "<C-/>", function() require("snacks").terminal() end, mode = { "n", "t" }, desc = "Terminal" },
-      { "<leader>ug", function() require("snacks").lazygit() end, desc = "Lazygit" },
+      {
+        "<C-/>",
+        function()
+          require("snacks").terminal()
+        end,
+        mode = { "n", "t" },
+        desc = "Terminal",
+      },
+      {
+        "<leader>ug",
+        function()
+          require("snacks").lazygit()
+        end,
+        desc = "Lazygit",
+      },
     },
   },
 }

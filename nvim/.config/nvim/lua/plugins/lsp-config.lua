@@ -7,7 +7,7 @@ return {
     lazy = false,
     config = function()
       require("mason").setup()
-    end
+    end,
   },
   {
     "williamboman/mason-lspconfig.nvim",
@@ -20,11 +20,10 @@ return {
       -- restrict it on tiny instances so pyright (installed on other machines)
       -- never attaches.
       require("mason-lspconfig").setup({
-        ensure_installed = is_tiny and { "lua_ls", "ruff" }
-          or { "lua_ls", "pyright", "ruff" },
+        ensure_installed = is_tiny and { "lua_ls", "ruff" } or { "lua_ls", "pyright", "ruff" },
         automatic_enable = is_tiny and { "lua_ls", "ruff" } or true,
       })
-    end
+    end,
   },
   {
     "WhoIsSethDaniel/mason-tool-installer.nvim",
@@ -34,18 +33,17 @@ return {
       require("mason-tool-installer").setup({
         -- ruff (lsp) covers black/isort/flake8; conform + nvim-lint use the rest.
         -- tiny instances: stylua only — skip the node/python tool installs.
-        ensure_installed = is_tiny and { "stylua" }
-          or {
-            'stylua',
-            'prettierd',
-            'eslint_d',
-            'rubocop',
-            'debugpy',
-            'mypy',
-            'pylint',
-          },
+        ensure_installed = is_tiny and { "stylua" } or {
+          "stylua",
+          "prettierd",
+          "eslint_d",
+          "rubocop",
+          "debugpy",
+          "mypy",
+          "pylint",
+        },
       })
-    end
+    end,
   },
   {
     "neovim/nvim-lspconfig",
@@ -89,8 +87,7 @@ return {
       -- pyright/ts_ls are node processes (100-500MB on real projects): only
       -- enable on machines that can afford them. ruff (Rust) is cheap enough
       -- for tiny instances and covers python diagnostics/formatting.
-      vim.lsp.enable(is_tiny and { "lua_ls", "ruff" }
-        or { "lua_ls", "ts_ls", "pyright", "ruff" })
+      vim.lsp.enable(is_tiny and { "lua_ls", "ruff" } or { "lua_ls", "ts_ls", "pyright", "ruff" })
 
       if is_tiny then
         vim.schedule(function()
@@ -98,10 +95,10 @@ return {
         end)
       end
 
-      vim.keymap.set('n', 'K', vim.lsp.buf.hover, {})
-      vim.keymap.set('n', '<leader>gd', vim.lsp.buf.definition, {})
-      vim.keymap.set('n', '<leader>gr', vim.lsp.buf.references, {})
-      vim.keymap.set({'n', 'v'}, '<leader>ca', vim.lsp.buf.code_action, {})
-    end
-  }
+      vim.keymap.set("n", "K", vim.lsp.buf.hover, {})
+      vim.keymap.set("n", "<leader>gd", vim.lsp.buf.definition, {})
+      vim.keymap.set("n", "<leader>gr", vim.lsp.buf.references, {})
+      vim.keymap.set({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, {})
+    end,
+  },
 }

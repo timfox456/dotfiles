@@ -6,7 +6,9 @@ return {
     keys = {
       {
         "<leader>gf",
-        function() require("conform").format({ async = true, lsp_format = "fallback" }) end,
+        function()
+          require("conform").format({ async = true, lsp_format = "fallback" })
+        end,
         mode = { "n", "v" },
         desc = "Format buffer",
       },
@@ -42,7 +44,9 @@ return {
           ruby = { "rubocop" },
         }
       vim.api.nvim_create_autocmd({ "BufWritePost", "BufEnter" }, {
-        callback = function() require("lint").try_lint() end,
+        callback = function()
+          require("lint").try_lint()
+        end,
       })
     end,
   },

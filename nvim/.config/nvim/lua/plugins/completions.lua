@@ -22,7 +22,9 @@ return {
     "monkoose/neocodeium",
     event = "InsertEnter",
     cmd = { "NeoCodeium", "CodeiumAuth", "CodeiumToggle" },
-    cond = function() return not require("lowmem").tiny() end,
+    cond = function()
+      return not require("lowmem").tiny()
+    end,
     keys = {
       { "<leader>ua", "<cmd>NeoCodeium toggle<cr>", desc = "Toggle Codeium" },
     },

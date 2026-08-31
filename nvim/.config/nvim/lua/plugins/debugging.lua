@@ -3,7 +3,7 @@ return {
   dependencies = {
     "rcarriga/nvim-dap-ui",
     "nvim-neotest/nvim-nio",
-    "leoluz/nvim-dap-go"
+    "leoluz/nvim-dap-go",
   },
   config = function()
     local dap, dapui = require("dap"), require("dapui")
@@ -24,7 +24,7 @@ return {
       dapui.close()
     end
 
-    vim.keymap.set('n', '<leader>dt', dap.toggle_breakpoint, {})
-    vim.keymap.set('n', '<leader>dc', dap.continue, {})
+    vim.keymap.set("n", "<leader>dt", dap.toggle_breakpoint, {})
+    vim.keymap.set("n", "<leader>dc", dap.continue, {})
   end,
 }
