@@ -1,7 +1,8 @@
 # dotfiles
 
-Neovim + tmux config managed with [GNU Stow](https://www.gnu.org/software/stow/).
-Works on macOS and Ubuntu.
+Neovim + tmux + ghostty + opencode config managed with
+[GNU Stow](https://www.gnu.org/software/stow/). Works on macOS, Linux
+desktops (i3) and Ubuntu servers.
 
 ## Setup
 
@@ -9,45 +10,45 @@ Works on macOS and Ubuntu.
 brew install stow        # macOS
 sudo apt install stow    # Ubuntu
 
-./install.sh             # desktop (tmux prefix C-b)
+./install.sh             # desktop (tmux prefix C-b; stows i3 on Linux)
 ./install.sh --server    # servers (tmux prefix C-a)
 ```
 
-## Ubuntu servers
+- `nvim/` — plugins pinned in `nvim/lazy-lock.json`; run `:Lazy restore` after
+  cloning on a new machine. Low-RAM instances (< 2GB) automatically skip
+  heavyweight LSP servers (pyright/ts_ls) and Codeium; override with
+  `NVIM_TINY=1` or `NVIM_TINY=0`.
+- `tmux/` vs `tmux-server/` — only one gets linked (both want
+  `~/.config/tmux/tmux.conf`). Shared settings in `tmux-common/`.
+  Sessionizer: `M-s` (no prefix) switches/creates a project session from
+  `~/timfox456` (override: `PROJECTS_DIR`).
+- `ghostty/` — auto-attaches tmux, Catppuccin Mocha theme.
+- `opencode/` — opencode Go/Zen config. Auth keys are per-machine in
+  `~/.local/share/opencode/auth.json` (`opencode auth login`).
+- tmux plugins (tpm) are machine-local in `~/.config/tmux/plugins`;
+  press `prefix + I` inside tmux to install them.
 
-Ubuntu 24.04 ships neovim 0.9.5 (too old for this config) and an old tmux.
-`install-deps.sh` checks installed versions and installs modern ones —
-neovim from the official release tarball, tmux built from source (uses
-`sudo`, or `--user` for a `~/.local` install). If the outdated binary came
-from apt, the owning packages are removed first so it doesn't shadow the
-new install:
+## Ubuntu / tooling
+
+`install-deps.sh` installs and pins what the setup needs:
 
 ```bash
 ./install-deps.sh --check    # report only
 ./install-deps.sh            # upgrade whatever is below minimum
-./install.sh --server
 ```
 
-Defaults: nvim `0.12.4`, tmux `3.7c` (override: `NVIM_VERSION=x.y.z TMUX_VERSION=3.7c ./install-deps.sh`).
-
-It also ensures the full toolchain — `stow git curl unzip build-essential ripgrep
-fzf nodejs npm python3 python3-pip python3-venv` (dotfiles linking, telescope,
-treesitter builds, and the mason-installed LSP servers/tools) — plus tpm at
-`~/.config/tmux/plugins/tpm` (cloned/migrated from `~/.tmux/plugins` if needed)
-with plugins installed non-interactively.
-
-- `nvim/` — symlinked as a whole dir; plugins pinned in `nvim/lazy-lock.json`,
-  run `:Lazy restore` after cloning on a new machine.
-- `tmux/` vs `tmux-server/` — only one gets linked (both want `~/.config/tmux/tmux.conf`).
-  Shared settings live in `tmux-common/`.
-- tmux plugins (tpm) are machine-local in `~/.config/tmux/plugins`;
-  press `prefix + I` inside tmux to install them.
+Covers: neovim (tarball), tmux (source build), stow, tree-sitter CLI,
+typescript@5 + typescript-language-server (npm global), and the editor
+toolchain (`git curl unzip build-essential ripgrep fzf nodejs npm
+python3-pip python3-venv`), plus tpm with plugins installed
+non-interactively. macOS: tree-sitter CLI installs via
+`brew install tree-sitter-cli`.
 
 ## Manual stow
 
-Packages mirror the `$HOME` layout (`<pkg>/.config/...`), so stow targets `$HOME`:
+Packages mirror the `$HOME` layout (`<pkg>/.config/...`):
 
 ```bash
-stow --restow -t ~ nvim tmux tmux-common             # desktop
-stow --restow -t ~ nvim tmux-server tmux-common      # server
+stow --restow -t ~ nvim tmux tmux-common ghostty opencode    # desktop
+stow --restow -t ~ nvim tmux-server tmux-common ghostty opencode
 ```

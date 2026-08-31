@@ -1,0 +1,26 @@
+# ~/.config/ghostty/config
+
+# Font (Nerd Font for Neovim icons)
+font-family = "Hack Nerd Font Mono"
+font-size = 14
+
+# Cursor
+cursor-style = "block"
+cursor-style-blink = true
+
+# Window padding
+window-padding-x = 2
+window-padding-y = 2
+
+# Theme: full catppuccin mocha palette (matches nvim + tmux)
+theme = "Catppuccin Mocha"
+
+# macOS: send Option as a real Alt modifier (M-hjkl resize, M-s sessionizer)
+macos-option-as-alt = true
+
+# Shell integration
+shell-integration = "zsh"
+shell-integration-features = "no-cursor"
+
+# Auto-attach tmux on launch
+command = "/bin/zsh -c 'tmux attach || tmux new-session'"

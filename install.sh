@@ -5,11 +5,13 @@ cd "$(dirname "$0")"
 
 # Packages mirror the $HOME layout (pkg/.config/...), so everything stows to $HOME.
 #
-# nvim: tree-folds into a whole-dir symlink (~/.config/nvim -> repo); safe because
-#       nvim state lives in ~/.local/share/nvim, not in the config dir.
-# tmux: pre-create the target dir so stow file-links the configs but leaves
-#       machine-local state (tpm plugins in ~/.config/tmux/plugins) alone.
-mkdir -p "$HOME/.config/tmux"
+# nvim:  tree-folds into a whole-dir symlink; state lives in ~/.local/share/nvim
+# tmux:  pre-created dir -> file-links configs, tpm plugins stay machine-local
+# ghostty/opencode: same file-link pattern; opencode keeps node_modules etc.
+#        machine-local in ~/.config/opencode
+# i3:    Linux desktops only (--server skips it)
+
+mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" "$HOME/.config/opencode"
 
 # Stow refuses to clobber real files/dirs — back up anything in the way.
 backup_if_real() {
@@ -23,15 +25,24 @@ backup_if_real() {
 backup_if_real "$HOME/.config/nvim"
 backup_if_real "$HOME/.config/tmux/tmux.conf"
 backup_if_real "$HOME/.config/tmux/common.conf"
+backup_if_real "$HOME/.config/ghostty/config"
+backup_if_real "$HOME/.config/opencode/opencode.json"
+backup_if_real "$HOME/.config/i3/config"
 
-stow --restow -t "$HOME" tmux-common
+stow --restow -t "$HOME" tmux-common ghostty opencode
 
 if [[ "${1:-}" == "--server" ]]; then
   stow --restow -t "$HOME" nvim tmux-server
-  echo "Linked: nvim, tmux-common, tmux-server (prefix C-a)"
+  echo "Linked: nvim, tmux-common, tmux-server, ghostty, opencode (prefix C-a)"
 else
   stow --restow -t "$HOME" nvim tmux
-  echo "Linked: nvim, tmux-common, tmux (desktop)"
+  if [[ "$(uname -s)" == "Linux" ]]; then
+    mkdir -p "$HOME/.config/i3"
+    stow --restow -t "$HOME" i3
+    echo "Linked: nvim, tmux-common, tmux, ghostty, opencode, i3 (desktop)"
+  else
+    echo "Linked: nvim, tmux-common, tmux, ghostty, opencode (desktop)"
+  fi
 fi
 
 # Finish tpm setup now that the config (with the @plugin list) is linked.
