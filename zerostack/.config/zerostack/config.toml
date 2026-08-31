@@ -1,0 +1,17 @@
+# zerostack config — STOWED (symlinked into the public dotfiles repo).
+#
+# NEVER add an [api_keys] table or any key material to this file — it is a
+# symlink into the public repo. Auth resolves from the environment instead:
+#
+#   export OPENROUTER_API_KEY="sk-or-v1-..."   # in ~/.bashrc, per machine
+#
+# Custom providers can name their own env var with `api_key_env` (see
+# docs/PROVIDERS.md). Machine-local overrides belong in a project's
+# .zerostack/config.toml or via ZS_CONFIG_DIR — never in this file.
+# Docs: https://github.com/gi-dellav/zerostack/blob/main/docs/CONFIG.md
+
+provider = "openrouter"
+# model = "deepseek/deepseek-v4-flash"   # browse: https://openrouter.ai/models
+compact_enabled = true
+# default_prompt = "code"
+# default_permission_mode = "standard"

@@ -11,7 +11,7 @@ cd "$(dirname "$0")"
 #        machine-local in ~/.config/opencode
 # i3:    Linux desktops only (--server skips it)
 
-mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" "$HOME/.config/opencode"
+mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" "$HOME/.config/opencode" "$HOME/.config/zerostack"
 
 # Stow refuses to clobber real files/dirs — back up anything in the way.
 backup_if_real() {
@@ -27,9 +27,10 @@ backup_if_real "$HOME/.config/tmux/tmux.conf"
 backup_if_real "$HOME/.config/tmux/common.conf"
 backup_if_real "$HOME/.config/ghostty/config"
 backup_if_real "$HOME/.config/opencode/opencode.json"
+backup_if_real "$HOME/.config/zerostack/config.toml"
 backup_if_real "$HOME/.config/i3/config"
 
-stow --restow -t "$HOME" tmux-common ghostty opencode
+stow --restow -t "$HOME" tmux-common ghostty opencode zerostack
 
 if [[ "${1:-}" == "--server" ]]; then
   stow --restow -t "$HOME" nvim tmux-server

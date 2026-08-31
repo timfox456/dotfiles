@@ -250,13 +250,8 @@ ensure_zerostack() {
     curl -fsSL https://raw.githubusercontent.com/gi-dellav/zerostack/main/install.sh | bash \
       || warn "zerostack install failed — see https://github.com/gi-dellav/zerostack#installation"
   fi
-  # Seed a machine-local config once (template lives in the repo; the copy is
-  # yours to edit — put API keys here or in OPENROUTER_API_KEY, never in git).
-  if [[ ! -f "$HOME/.config/zerostack/config.toml" && ! -f "$HOME/.local/share/zerostack/config.toml" ]]; then
-    mkdir -p "$HOME/.config/zerostack"
-    cp zerostack/config.toml.template "$HOME/.config/zerostack/config.toml" \
-      && log "seeded zerostack config -> ~/.config/zerostack/config.toml"
-  fi
+  # Config comes from install.sh (stowed ~/.config/zerostack/config.toml —
+  # secret-free; the API key resolves from OPENROUTER_API_KEY at runtime).
   command -v zerostack >/dev/null 2>&1 && \
     warn "remember: export OPENROUTER_API_KEY=\"sk-or-...\" in ~/.bashrc (per machine)"
 }

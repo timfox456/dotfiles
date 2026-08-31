@@ -4,5 +4,4 @@ install-deps\.sh
 \.bak$
 \.remote$
 nvim\.old
-zerostack
 terminfo

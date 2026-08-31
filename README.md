@@ -26,10 +26,9 @@ sudo apt install stow    # Ubuntu
 - `opencode/` — opencode Go/Zen config. Auth keys are per-machine in
   `~/.local/share/opencode/auth.json` (`opencode auth login`).
 - **zerostack** — tiny Rust agent for small instances (opencode is too heavy
-  for 1GB boxes). `install-deps.sh` installs it via the official script and
-  seeds a machine-local `~/.config/zerostack/config.toml` from
-  `zerostack/config.toml.template`. Auth: `export OPENROUTER_API_KEY=...` in
-  your shell rc (per machine — never committed).
+  for 1GB boxes). `install-deps.sh` installs it via the official script; its
+  stowed config is secret-free by design (key resolves from
+  `OPENROUTER_API_KEY` in your shell rc — never add keys to the stowed file).
 - tmux plugins (tpm) are machine-local in `~/.config/tmux/plugins`;
   press `prefix + I` inside tmux to install them.
 
