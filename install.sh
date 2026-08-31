@@ -11,7 +11,7 @@ cd "$(dirname "$0")"
 #        machine-local in ~/.config/opencode
 # i3:    Linux desktops only (--server skips it)
 
-mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" "$HOME/.config/opencode" "$HOME/.config/zerostack" "$HOME/.config/git"
+mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" "$HOME/.config/opencode" "$HOME/.config/zerostack" "$HOME/.config/git" "$HOME/.config/shell"
 
 # Stow refuses to clobber real files/dirs — back up anything in the way.
 backup_if_real() {
@@ -32,19 +32,19 @@ backup_if_real "$HOME/.config/git/ignore"
 backup_if_real "$HOME/.gitconfig"
 backup_if_real "$HOME/.config/i3/config"
 
-stow --restow -t "$HOME" tmux-common ghostty opencode zerostack git
+stow --restow -t "$HOME" tmux-common ghostty opencode zerostack git shell
 
 if [[ "${1:-}" == "--server" ]]; then
   stow --restow -t "$HOME" nvim tmux-server
-  echo "Linked: nvim, tmux-common, tmux-server, ghostty, opencode, git (prefix C-a)"
+  echo "Linked: nvim, tmux-common, tmux-server, ghostty, opencode, git, shell, zerostack (prefix C-a)"
 else
   stow --restow -t "$HOME" nvim tmux
   if [[ "$(uname -s)" == "Linux" ]]; then
     mkdir -p "$HOME/.config/i3"
     stow --restow -t "$HOME" i3
-    echo "Linked: nvim, tmux-common, tmux, ghostty, opencode, i3 (desktop)"
+    echo "Linked: nvim, tmux-common, tmux, ghostty, opencode, git, shell, zerostack, i3 (desktop)"
   else
-    echo "Linked: nvim, tmux-common, tmux, ghostty, opencode, git (desktop)"
+    echo "Linked: nvim, tmux-common, tmux, ghostty, opencode, git, shell, zerostack (desktop)"
   fi
 fi
 

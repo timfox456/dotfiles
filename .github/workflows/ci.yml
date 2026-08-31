@@ -21,9 +21,10 @@ jobs:
           bash -n install.sh
           bash -n install-deps.sh
           bash -n tmux-common/.config/tmux/tmux-sessionizer
+          bash -n shell/.bash_aliases
 
       - name: shellcheck
-        run: shellcheck install.sh install-deps.sh tmux-common/.config/tmux/tmux-sessionizer
+        run: shellcheck install.sh install-deps.sh tmux-common/.config/tmux/tmux-sessionizer shell/.bash_aliases
 
       - name: lua syntax (luac)
         run: find nvim/.config/nvim/lua -name '*.lua' -print0 | xargs -0 -n1 luac5.4 -p
