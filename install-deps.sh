@@ -240,6 +240,28 @@ ensure_ghostty_terminfo() {
 }
 ensure_ghostty_terminfo
 
+# --- zerostack (tiny Rust coding agent — fits 1GB instances) -----------------
+# Official install script (prebuilt binary, near-instant even on small vCPUs).
+ensure_zerostack() {
+  if command -v zerostack >/dev/null 2>&1; then
+    log "zerostack: $(zerostack --version 2>/dev/null | head -n1)"
+  else
+    log "installing zerostack (official install script)"
+    curl -fsSL https://raw.githubusercontent.com/gi-dellav/zerostack/main/install.sh | bash \
+      || warn "zerostack install failed — see https://github.com/gi-dellav/zerostack#installation"
+  fi
+  # Seed a machine-local config once (template lives in the repo; the copy is
+  # yours to edit — put API keys here or in OPENROUTER_API_KEY, never in git).
+  if [[ ! -f "$HOME/.config/zerostack/config.toml" && ! -f "$HOME/.local/share/zerostack/config.toml" ]]; then
+    mkdir -p "$HOME/.config/zerostack"
+    cp zerostack/config.toml.template "$HOME/.config/zerostack/config.toml" \
+      && log "seeded zerostack config -> ~/.config/zerostack/config.toml"
+  fi
+  command -v zerostack >/dev/null 2>&1 && \
+    warn "remember: export OPENROUTER_API_KEY=\"sk-or-...\" in ~/.bashrc (per machine)"
+}
+ensure_zerostack
+
 # --- neovim: official release tarball ---------------------------------------
 if (( NEED_NVIM )); then
   command -v nvim >/dev/null 2>&1 && remove_apt_package nvim

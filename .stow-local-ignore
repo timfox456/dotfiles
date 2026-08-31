@@ -1,5 +1,8 @@
 README\.md
 install\.sh
+install-deps\.sh
 \.bak$
 \.remote$
 nvim\.old
+zerostack
+terminfo
