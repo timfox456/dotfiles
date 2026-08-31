@@ -18,7 +18,7 @@ brew "tree-sitter-cli"
 brew "glab"
 brew "aws"
 brew "azure-cli"
-brew "google-cloud-sdk"
+cask "google-cloud-sdk"
 
 # Dev tooling
 brew "shellcheck"
