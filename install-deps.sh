@@ -170,15 +170,20 @@ trap 'rm -rf "$TMPDIR_BUILD"' EXIT
 ensure_apt_packages "${TOOL_DEPS[@]}"
 
 # --- tree-sitter CLI (required by nvim-treesitter main to compile parsers) ---
-# Not an apt package on 24.04; install the official release binary (Linux only —
-# on macOS use `brew install tree-sitter`).
+# Linux: official release binary. macOS: brew formula `tree-sitter-cli`
+# (NOT `tree-sitter`, which is only the parser library).
 ensure_tree_sitter_cli() {
   command -v tree-sitter >/dev/null 2>&1 && {
     log "tree-sitter CLI: $(tree-sitter --version | head -n1)"
     return 0
   }
-  if [[ "$(uname -s)" != "Linux" ]]; then
-    warn "tree-sitter CLI missing — macOS: 'npm install -g tree-sitter-cli' (Homebrew's formula is the library only)"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    if command -v brew >/dev/null 2>&1; then
+      log "installing tree-sitter CLI via Homebrew"
+      brew install tree-sitter-cli || warn "brew install failed — try 'npm install -g tree-sitter-cli'"
+    else
+      warn "tree-sitter CLI missing — install Homebrew, or 'npm install -g tree-sitter-cli'"
+    fi
     return 0
   fi
   local arch
