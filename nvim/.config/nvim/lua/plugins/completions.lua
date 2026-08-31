@@ -9,25 +9,22 @@ return {
       appearance = { nerd_font_variant = "mono" },
       completion = { documentation = { auto_show = true } },
       sources = {
-        default = { "lsp", "path", "snippets", "buffer", "codeium" },
-        providers = {
-          codeium = { name = "codeium", module = "codeium.blink", async = true },
-        },
+        default = { "lsp", "path", "snippets", "buffer" },
       },
       signature = { enabled = true },
     },
   },
   {
-    -- Codeium/Windsurf (rebranded after Cognition acquisition; module stays "codeium")
-    "Exafunction/windsurf.nvim",
+    -- Codeium/Windsurf backend via neocodeium (ghost-text style, engine-independent).
+    -- NOTE: Exafunction's windsurf.nvim crashes without nvim-cmp present, so we
+    -- use neocodeium instead of a blink source integration.
+    "monkoose/neocodeium",
     event = "InsertEnter",
-    dependencies = { "nvim-lua/plenary.nvim" },
+    cmd = "NeoCodeium",
     keys = {
-      { "<leader>ua", function() require("codeium").toggle() end, desc = "Toggle Codeium" },
+      { "<leader>ua", "<cmd>NeoCodeium toggle<cr>", desc = "Toggle Codeium" },
     },
-    opts = {
-      enable_chat = false,
-    },
+    opts = {},
   },
   {
     "folke/lazydev.nvim",
