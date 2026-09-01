@@ -36,7 +36,9 @@ MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs 
 #   mosh -> roaming/persistent SSH sessions (pairs with tmux; needs UDP 60000-61000)
 #   gh/glab -> forge CLIs
 #   ruby -> mason: rubocop (gem install; noble ships 3.2 + gem)
-TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop gh glab aerc nodejs npm python3 python3-pip python3-venv ruby)
+#   fd-find -> telescope/nvim find_files (Ubuntu names the binary fdfind —
+#              symlinked to fd below); tree -> directory listing
+TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop gh glab aerc fd-find tree nodejs npm python3 python3-pip python3-venv ruby)
 
 MODE="install"
 PREFIX="/usr/local"
@@ -218,6 +220,14 @@ trap 'rm -rf "$TMPDIR_BUILD"' EXIT
 
 # --- editor tool dependencies ------------------------------------------------
 ensure_apt_packages "${TOOL_DEPS[@]}"
+
+# fd-find's binary is `fdfind` on Ubuntu — nvim/telescope expect `fd`.
+# User-local symlink (no sudo); ~/.local/bin is on PATH via .bash_aliases.
+if [[ "$(uname -s)" != "Darwin" ]] && command -v fdfind >/dev/null 2>&1 && ! command -v fd >/dev/null 2>&1; then
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$(command -v fdfind)" "$HOME/.local/bin/fd"
+  log "symlinked fdfind -> ~/.local/bin/fd"
+fi
 
 # --- tree-sitter CLI (required by nvim-treesitter main to compile parsers) ---
 # Linux: official release binary. macOS: brew formula `tree-sitter-cli`

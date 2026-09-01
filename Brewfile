@@ -8,6 +8,8 @@ brew "gh"
 brew "ripgrep"
 brew "fzf"
 brew "mosh"
+brew "fd"
+brew "tree"
 
 # Editors / agents
 brew "neovim"
