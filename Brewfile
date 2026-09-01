@@ -16,7 +16,7 @@ brew "tree-sitter-cli"
 
 # Forge & cloud CLIs (Linux: apt/installer — see install-deps.sh)
 brew "glab"
-brew "aws"
+brew "awscli"
 brew "azure-cli"
 cask "google-cloud-sdk"
 
