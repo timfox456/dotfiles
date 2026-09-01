@@ -291,10 +291,11 @@ ensure_zerostack
 
 # --- nvm + uv (per-machine dev tooling; user-local, no sudo) -----------------
 ensure_nvm() {
-  # Failure-tolerant probe: on machines without nvm this must return empty,
-  # NOT kill the script (set -e + a failing command substitution = silent exit).
+  # env -u PREFIX: nvm refuses to run when PREFIX is set (the script sets it),
+  # so the probe would always fail and force a reinstall on every run.
   local installed
-  installed="$(bash -c '. "$HOME/.nvm/nvm.sh" && nvm --version' 2>/dev/null | head -n1 || true)"
+  # shellcheck disable=SC2016  # intentional: ${HOME} must expand inside the subshell, after nvm.sh loads
+  installed="$(env -u PREFIX bash -c '. "$HOME/.nvm/nvm.sh" && nvm --version' 2>/dev/null | head -n1 || true)"
   if [[ -n "$installed" ]] && ver_ge "$installed" "${NVM_VERSION#v}"; then
     log "nvm: $installed (>= ${NVM_VERSION})"
   else
@@ -308,6 +309,23 @@ ensure_nvm() {
     curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" \
       | NVM_DIR="$HOME/.nvm" METHOD=git bash \
       || warn "nvm install failed — see https://github.com/nvm-sh/nvm"
+  fi
+  # Provide an actual node runtime through nvm: nvm alone gives no node/npm,
+  # and Mason's npm-based LSP servers (pyright, prettierd, eslint_d) need one.
+  # Skipped when the user already manages their own node versions.
+  # (System apt nodejs remains the non-interactive fallback for scripts.)
+  # PREFIX is unset inside a subshell — nvm refuses to run with it set, but
+  # the global PREFIX (/usr/local) is needed later by the nvim/tmux installers.
+  if [[ -z "$(find "$HOME/.nvm/versions/node" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null || true)" ]]; then
+    log "installing node LTS via nvm (+ default alias)"
+    (
+      unset PREFIX
+      export NVM_DIR="$HOME/.nvm"
+      # shellcheck source=/dev/null
+      . "$NVM_DIR/nvm.sh"
+      nvm install --lts
+      nvm alias default 'lts/*'
+    ) || warn "node LTS install failed — run 'nvm install --lts' manually"
   fi
 }
 
