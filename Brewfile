@@ -22,6 +22,12 @@ brew "azure-cli"
 # renamed from google-cloud-sdk; the old cask name redirects but warns
 cask "gcloud-cli"
 
+# Apps & corporate tooling (macOS only — this Brewfile never runs on Linux)
+tap "databricks/tap"
+brew "databricks/tap/databricks"
+cask "google-chrome"
+cask "visual-studio-code"
+
 # Dev tooling
 brew "shellcheck"
 brew "actionlint"
