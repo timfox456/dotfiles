@@ -18,7 +18,8 @@ brew "tree-sitter-cli"
 brew "glab"
 brew "awscli"
 brew "azure-cli"
-cask "google-cloud-sdk"
+# renamed from google-cloud-sdk; the old cask name redirects but warns
+cask "gcloud-cli"
 
 # Dev tooling
 brew "shellcheck"
