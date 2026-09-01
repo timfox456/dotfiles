@@ -56,6 +56,29 @@ ripgrep fzf nodejs npm python3 python3-pip python3-venv` — macOS gets the same
 installers on Linux, Brewfile on macOS), plus tpm with plugins installed
 non-interactively.
 
+## Gmail via aerc (OAuth — no app passwords, no 2FA requirement)
+
+`aerc/.config/aerc/` holds a working Gmail-over-XOAUTH2 setup. Google requires
+OAuth for IMAP (app passwords need 2FA, and Workspace is dropping password
+IMAP entirely), so the flow uses a vendored token helper:
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → create a
+   project → OAuth consent screen (External is fine for personal use) →
+   Credentials → **OAuth client ID → Desktop app**.
+2. Copy the client ID/secret into `aerc/.config/aerc/mutt_oauth2.py`
+   (the `google:` block — installed-app client secrets are not confidential,
+   safe to commit).
+3. One-time authorize per machine (opens browser, token stored encrypted in
+   `~/.local/share/aerc/` — never synced):
+   ```bash
+   aerc/.config/aerc/mutt_oauth2.py --verbose --authorize \
+     --authflow localhostauthcode ~/.local/share/aerc/token.gmail
+   ```
+4. Edit `aerc/.config/aerc/accounts.conf` (replace `you@gmail.com`) and
+   restart aerc. Field reference: `man aerc-accounts`.
+
+Workspace accounts additionally need IMAP enabled by the admin.
+
 ## Manual stow
 
 Packages mirror the `$HOME` layout (`<pkg>/.config/...`):

@@ -34,7 +34,7 @@ MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs 
 #   mosh -> roaming/persistent SSH sessions (pairs with tmux; needs UDP 60000-61000)
 #   gh/glab -> forge CLIs
 #   ruby -> mason: rubocop (gem install; noble ships 3.2 + gem)
-TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop gh glab nodejs npm python3 python3-pip python3-venv ruby)
+TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop gh glab aerc nodejs npm python3 python3-pip python3-venv ruby)
 
 MODE="install"
 PREFIX="/usr/local"

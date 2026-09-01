@@ -13,6 +13,7 @@ brew "mosh"
 brew "neovim"
 brew "tmux"
 brew "tree-sitter-cli"
+brew "aerc"
 
 # Forge & cloud CLIs (Linux: apt/installer — see install-deps.sh)
 brew "glab"
