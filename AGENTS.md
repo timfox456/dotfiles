@@ -49,9 +49,12 @@ desktops (i3)** and **Ubuntu servers**.
 - Low-memory instances (< 2GB RAM, or `NVIM_TINY=1`) skip pyright/ts_ls/
   codeium via `lua/lowmem.lua` — keep new heavyweight servers behind that
   gate.
-- The live `lazy-lock.json` on each machine is a per-machine artifact: when
-  pulling on servers, `git restore nvim/.config/nvim/lazy-lock.json` first
-  if git complains (see deferred relocation plan).
+- **The lazy lockfile lives in the state dir** (`~/.local/state/nvim/
+  lazy-lock.json`), not in this repo — lazy's install/update passes write
+  there and never touch the repo. The repo copy is the canonical seed:
+  `install.sh` copies repo → state on every run; after DELIBERATE plugin
+  updates run `bin/lazy-lock-sync` to copy state → repo, then commit.
+  Never hand-edit the repo lockfile from a machine's live state.
 
 ## Testing
 

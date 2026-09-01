@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Copy the machine-local lazy lockfile into the repo (before committing).
+# Run this after DELIBERATE plugin updates (:Lazy sync) so other machines
+# converge to the new pins. Never needed for routine machine setup.
+set -euo pipefail
+
+STATE="$HOME/.local/state/nvim/lazy-lock.json"
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)/nvim/.config/nvim/lazy-lock.json"
+
+if [[ ! -f "$STATE" ]]; then
+  echo "no state lockfile at $STATE — nothing to sync" >&2
+  exit 1
+fi
+
+cp "$STATE" "$REPO_DIR"
+echo "synced state lockfile -> repo:"
+git -C "$(dirname "$0")/.." diff --stat -- nvim/.config/nvim/lazy-lock.json || true
+echo "now commit + push so other machines converge (they'll pick it up on the next ./install.sh)"

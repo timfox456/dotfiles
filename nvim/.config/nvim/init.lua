@@ -18,7 +18,13 @@ local opts = {}
 
 
 require("vim-options")
-require("lazy").setup("plugins")
+-- Lockfile lives in the state dir (machine-local), NOT in this stowed config:
+-- lazy's install/update passes would otherwise rewrite the public repo's
+-- lazy-lock.json on every machine. install.sh copies the repo's canonical
+-- lockfile into the state dir; `lazy-lock-sync` copies deliberate updates back.
+require("lazy").setup("plugins", {
+  lockfile = vim.fn.stdpath("state") .. "/lazy-lock.json",
+})
 
 vim.wo.number = true
 

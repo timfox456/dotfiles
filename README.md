@@ -20,10 +20,12 @@ Or bootstrap a fresh machine in one shot:
 curl -fsSL https://raw.githubusercontent.com/timfox456/dotfiles/main/bootstrap.sh | bash -s -- --server
 ```
 
-- `nvim/` — plugins pinned in `nvim/lazy-lock.json`; run `:Lazy restore` after
-  cloning on a new machine. Low-RAM instances (< 2GB) automatically skip
-  heavyweight LSP servers (pyright/ts_ls) and Codeium; override with
-  `NVIM_TINY=1` or `NVIM_TINY=0`.
+- `nvim/` — plugins pinned via the lockfile: `install.sh` converges each
+  machine's state lockfile to the repo copy; deliberate plugin updates are
+  synced back with `lazy-lock-sync` (then commit + push). The recurring
+  `git restore lazy-lock.json` pull ritual is retired. Low-RAM instances
+  (< 2GB) automatically skip heavyweight LSP servers (pyright/ts_ls) and
+  Codeium; override with `NVIM_TINY=1` or `NVIM_TINY=0`.
 - `tmux/` vs `tmux-server/` — only one gets linked (both want
   `~/.config/tmux/tmux.conf`). Shared settings in `tmux-common/`.
   Sessionizer: `M-s` (no prefix) or the `s` alias switches/creates a project

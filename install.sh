@@ -51,6 +51,13 @@ else
 fi
 
 # Finish tpm setup now that the config (with the @plugin list) is linked.
+# ...and converge the machine-local lazy lockfile to the repo's canonical pins.
+# lazy writes its lockfile to the state dir (machine-local); the repo copy only
+# changes via bin/lazy-lock-sync after deliberate plugin updates.
+if [[ -f "$HOME/.config/nvim/lazy-lock.json" ]]; then
+  mkdir -p "$HOME/.local/state/nvim"
+  cp "$HOME/.config/nvim/lazy-lock.json" "$HOME/.local/state/nvim/lazy-lock.json"
+fi
 TPM_INSTALL=""
 for cand in "$HOME/.config/tmux/plugins/tpm/bin/install_plugins" \
             "$HOME/.config/tmux/plugins/tpm/bin/install_plugins.sh"; do
