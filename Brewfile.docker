@@ -1,0 +1,14 @@
+# Opt-in container tier — NOT part of the default Brewfile.
+# Install with: ./install-deps.sh --docker   (macOS only)
+#
+# colima = free, lightweight, on-demand Linux VM: resources are only used
+# while `colima start` is active (`colima stop` frees everything). Works on
+# Intel and Apple Silicon. Docker Desktop is deliberately not used here —
+# resource hog + paid licensing for corporate laptops.
+#
+# Apple Silicon alternative if you prefer a GUI: swap colima for
+#   cask "orbstack"
+
+brew "docker"
+brew "docker-compose"
+brew "colima"

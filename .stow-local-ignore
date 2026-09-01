@@ -5,6 +5,7 @@ install-deps\.sh
 bootstrap\.sh
 Brewfile
 Brewfile\.lock\.json
+Brewfile\.docker
 \.bak$
 \.DS_Store
 terminfo

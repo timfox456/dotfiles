@@ -125,6 +125,23 @@ to do it for a server:
 re-authorize weekly. Press **"Publish app"** on the consent screen to avoid
 it (unverified-app warning on first login is expected and harmless).
 
+## Docker (opt-in, macOS only)
+
+Docker is deliberately **not** in the default setup: the daemon is a
+non-starter on small servers, Docker Desktop is a resource hog with paid
+corporate licensing, and older Macs shouldn't carry it at all. When a Mac
+actually needs containers:
+
+```bash
+./install-deps.sh --docker      # installs colima + docker + compose
+colima start                    # VM runs only while started (colima stop frees it)
+docker run --rm hello-world
+```
+
+colima is free, works on Intel and Apple Silicon, and the VM consumes
+nothing until started. Apple Silicon users preferring a GUI can swap
+colima for OrbStack (edit `Brewfile.docker`).
+
 ## Manual stow
 
 Packages mirror the `$HOME` layout (`<pkg>/.config/...`):

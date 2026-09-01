@@ -11,6 +11,8 @@
 #   ./install-deps.sh --force        # reinstall/upgrade to pinned versions even if sufficient
 #   ./install-deps.sh --user         # install to ~/.local instead of /usr/local (no root needed)
 #
+#   ./install-deps.sh --docker       # also install container tier (macOS: colima)
+#
 # Pinned versions (override via env):
 #   NVIM_VERSION=0.12.4 ./install-deps.sh
 #   TMUX_VERSION=3.7c ./install-deps.sh
@@ -39,13 +41,15 @@ TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop gh 
 MODE="install"
 PREFIX="/usr/local"
 FORCE=0
+DOCKER=0
 for arg in "$@"; do
   case "$arg" in
     --check) MODE="check" ;;
     --force) FORCE=1 ;;
     --user)  PREFIX="${HOME}/.local" ;;
+    --docker) DOCKER=1 ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    *) echo "unknown option: $arg (see --help)"; exit 1 ;;
+    *) echo "unknown option: $arg (see --help)" >&2; exit 1 ;;
   esac
 done
 
@@ -155,6 +159,23 @@ ensure_brew_bundle() {
     || warn "brew bundle failed — install missing tools manually (see Brewfile)"
 }
 ensure_brew_bundle
+
+# Opt-in container tier (macOS only): colima + docker + compose, on-demand VM.
+# Docker Desktop and default docker-on-servers are deliberately avoided —
+# see Brewfile.docker and the README.
+ensure_brew_bundle_docker() {
+  (( DOCKER )) || return 0
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    warn "--docker is macOS-only (servers deliberately get no docker)"
+    return 0
+  fi
+  log "ensuring container tier (colima + docker + compose) via Brewfile.docker"
+  brew bundle --file=Brewfile.docker \
+    || warn "docker tier install failed — see Brewfile.docker"
+  command -v colima >/dev/null 2>&1 && \
+    echo "container tier ready. start the VM with: colima start   (stop: colima stop)"
+}
+ensure_brew_bundle_docker
 
 log "detected: nvim=${NVIM_CUR:-missing}, tmux=${TMUX_CUR:-missing}"
 log "targets:  nvim>=${MIN_NVIM_VERSION} (install ${NVIM_VERSION}), tmux>=${MIN_TMUX_VERSION} (install ${TMUX_VERSION})"
