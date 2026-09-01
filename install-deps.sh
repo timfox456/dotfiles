@@ -291,12 +291,18 @@ ensure_zerostack
 
 # --- nvm + uv (per-machine dev tooling; user-local, no sudo) -----------------
 ensure_nvm() {
+  # Failure-tolerant probe: on machines without nvm this must return empty,
+  # NOT kill the script (set -e + a failing command substitution = silent exit).
   local installed
-  installed="$(bash -c '. "$HOME/.nvm/nvm.sh" && nvm --version' 2>/dev/null | head -n1)"
+  installed="$(bash -c '. "$HOME/.nvm/nvm.sh" && nvm --version' 2>/dev/null | head -n1 || true)"
   if [[ -n "$installed" ]] && ver_ge "$installed" "${NVM_VERSION#v}"; then
     log "nvm: $installed (>= ${NVM_VERSION})"
   else
     log "installing nvm ${NVM_VERSION}${installed:+ (upgrading from $installed)} -> ~/.nvm"
+    # Pre-create NVM_DIR: the installer only auto-creates it when it matches
+    # its default ($HOME/.nvm, or $XDG_CONFIG_HOME/nvm if that var is set) —
+    # a preset-but-missing dir on an XDG machine would be refused.
+    mkdir -p "$HOME/.nvm"
     # Pin NVM_DIR explicitly: never inherit it from the calling environment,
     # or the installer could target the wrong home.
     curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" \
@@ -322,6 +328,22 @@ ensure_uv() {
 }
 ensure_nvm
 ensure_uv
+
+# --- oh-my-zsh (macOS only — Linux servers run bash) -------------------------
+ensure_omz() {
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    return 0
+  fi
+  if [[ -d "$HOME/.oh-my-zsh/.git" ]]; then
+    log "oh-my-zsh: updating"
+    git -C "$HOME/.oh-my-zsh" pull --ff-only -q || true
+  else
+    log "installing oh-my-zsh -> ~/.oh-my-zsh"
+    git clone -q --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh" \
+      || warn "oh-my-zsh install failed — see https://ohmyz.sh"
+  fi
+}
+ensure_omz
 
 # --- cloud & forge CLIs ------------------------------------------------------
 # gh/glab come from apt via TOOL_DEPS. aws/az/gcloud have no current distro
@@ -461,6 +483,7 @@ if command -v git >/dev/null 2>&1; then
     git -C "$TPM_DIR" pull --ff-only -q 2>/dev/null || true
   else
     log "installing tpm -> $TPM_DIR"
+    mkdir -p "$HOME/.config/tmux/plugins"
     git clone -q https://github.com/tmux-plugins/tpm "$TPM_DIR" || warn "tpm clone failed"
   fi
   # modern tpm ships bin/install_plugins; older versions bin/install_plugins.sh

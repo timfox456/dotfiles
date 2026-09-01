@@ -32,6 +32,7 @@ backup_if_real "$HOME/.config/git/ignore"
 backup_if_real "$HOME/.gitconfig"
 backup_if_real "$HOME/.config/aerc/accounts.conf"
 backup_if_real "$HOME/.config/i3/config"
+backup_if_real "$HOME/.zshrc"
 
 stow --restow -t "$HOME" tmux-common ghostty opencode zerostack git shell bin aerc
 
