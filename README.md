@@ -79,6 +79,33 @@ IMAP entirely), so the flow uses a vendored token helper:
 
 Workspace accounts additionally need IMAP enabled by the admin.
 
+### Headless servers
+
+The authorize step needs a browser only for the *approval click* — two ways
+to do it for a server:
+
+1. **Authorize on a desktop, copy the encrypted token file** (most reliable):
+   ```bash
+   # on the Mac, after authorizing:
+   scp ~/.local/share/aerc/token.gmail server:~/.local/share/aerc/token.gmail
+   ```
+   The file is passphrase-encrypted by mutt_oauth2.py — use the *same
+   passphrase* when creating it on each machine and the copy decrypts fine.
+2. **Device code flow, on the server itself**:
+   ```bash
+   aerc/.config/aerc/mutt_oauth2.py --verbose --authorize \
+     --authflow devicecode ~/.local/share/aerc/token.gmail
+   ```
+   It prints a URL + code; open the URL in any browser, log in, enter the
+   code. Note: Google's device flow can require an OAuth client of type
+   *"TV and Limited Input devices"* — if the Desktop client rejects it,
+   either create that second client type or use option 1.
+
+**Important (personal accounts):** while the OAuth consent screen is in
+*"Testing"* status, Google expires refresh tokens after **7 days** — you'd
+re-authorize weekly. Press **"Publish app"** on the consent screen to avoid
+it (unverified-app warning on first login is expected and harmless).
+
 ## Manual stow
 
 Packages mirror the `$HOME` layout (`<pkg>/.config/...`):
