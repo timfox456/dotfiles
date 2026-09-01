@@ -1,185 +1,89 @@
-# If you come from bash you might have to change your $PATH.
-export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
+# shellcheck shell=zsh
+# zsh config — macOS + anywhere else zsh is used (Linux servers run bash:
+# see shell/.bash_aliases). Secrets live in ~/.config/shell/secrets.local.
 
+# typeset -U makes the path array deduplicate itself, no matter how many
+# times different blocks below prepend the same directory.
+typeset -U path PATH
+export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 
-
-# Path to your Oh My Zsh installation.
-export ZSH="$HOME/.oh-my-zsh"
-
-# Set name of the theme to load --- if set to "random", it will
-# load a random theme each time Oh My Zsh is loaded, in which case,
-# to know which specific one was loaded, run: echo $RANDOM_THEME
-# See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-ZSH_THEME="robbyrussell"
-
-# vim mode
+# vi mode + search binds
 bindkey -v
-
-# Bind Ctrl+R for incremental reverse search in insert mode
 bindkey '^R' history-incremental-search-backward
-
-# Optionally, also bind Ctrl+R for command mode if you like
 bindkey -M vicmd '^R' history-incremental-search-backward
 
-# Set list of themes to pick from when loading at random
-# Setting this variable when ZSH_THEME=random will cause zsh to load
-# a theme from this variable instead of looking in $ZSH/themes/
-# If set to an empty array, this variable will have no effect.
-# ZSH_THEME_RANDOM_CANDIDATES=( "robbyrussell" "agnoster" )
-
-# Uncomment the following line to use case-sensitive completion.
-# CASE_SENSITIVE="true"
-
-# Uncomment the following line to use hyphen-insensitive completion.
-# Case-sensitive completion must be off. _ and - will be interchangeable.
-# HYPHEN_INSENSITIVE="true"
-
-# Uncomment one of the following lines to change the auto-update behavior
-# zstyle ':omz:update' mode disabled  # disable automatic updates
-# zstyle ':omz:update' mode auto      # update automatically without asking
-# zstyle ':omz:update' mode reminder  # just remind me to update when it's time
-
-# Uncomment the following line to change how often to auto-update (in days).
-# zstyle ':omz:update' frequency 13
-
-# Uncomment the following line if pasting URLs and other text is messed up.
-# DISABLE_MAGIC_FUNCTIONS="true"
-
-# Uncomment the following line to disable colors in ls.
-# DISABLE_LS_COLORS="true"
-
-# Uncomment the following line to disable auto-setting terminal title.
-# DISABLE_AUTO_TITLE="true"
-
-# Uncomment the following line to enable command auto-correction.
-# ENABLE_CORRECTION="true"
-
-# Uncomment the following line to display red dots whilst waiting for completion.
-# You can also set it to another string to have that shown instead of the default red dots.
-# e.g. COMPLETION_WAITING_DOTS="%F{yellow}waiting...%f"
-# Caution: this setting can cause issues with multiline prompts in zsh < 5.7.1 (see #5765)
-# COMPLETION_WAITING_DOTS="true"
-
-# Uncomment the following line if you want to disable marking untracked files
-# under VCS as dirty. This makes repository status check for large repositories
-# much, much faster.
-# DISABLE_UNTRACKED_FILES_DIRTY="true"
-
-# Uncomment the following line if you want to change the command execution time
-# stamp shown in the history command output.
-# You can set one of the optional three formats:
-# "mm/dd/yyyy"|"dd.mm.yyyy"|"yyyy-mm-dd"
-# or set a custom format using the strftime function format specifications,
-# see 'man strftime' for details.
-# HIST_STAMPS="mm/dd/yyyy"
-
-# Would you like to use another custom folder than $ZSH/custom?
-# ZSH_CUSTOM=/path/to/new-custom-folder
-
-# Which plugins would you like to load?
-# Standard plugins can be found in $ZSH/plugins/
-# Custom plugins may be added to $ZSH_CUSTOM/plugins/
-# Example format: plugins=(rails git textmate ruby lighthouse)
-# Add wisely, as too many plugins slow down shell startup.
+# === Oh My Zsh ==============================================================
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME="robbyrussell"
 plugins=(git)
+source "$ZSH/oh-my-zsh.sh"
 
-source $ZSH/oh-my-zsh.sh
-
-# User configuration
-
-# export MANPATH="/usr/local/man:$MANPATH"
-
-# You may need to manually set your language environment
-# export LANG=en_US.UTF-8
-
-# Preferred editor for local and remote sessions
+# === Editor =================================================================
 if [[ -n $SSH_CONNECTION ]]; then
   export EDITOR='vim'
 else
   export EDITOR='nvim'
 fi
-
-export ES_HOME=$HOME/timfox456
-
-# Compilation flags
-# export ARCHFLAGS="-arch $(uname -m)"
-
-# Set personal aliases, overriding those provided by Oh My Zsh libs,
-# plugins, and themes. Aliases can be placed here, though Oh My Zsh
-# users are encouraged to define aliases within a top-level file in
-# the $ZSH_CUSTOM folder, with .zsh extension. Examples:
-# - $ZSH_CUSTOM/aliases.zsh
-# - $ZSH_CUSTOM/macos.zsh
-# For a full list of active aliases, run `alias`.
-#
-# Example aliases
-# alias zshconfig="mate ~/.zshrc"
-# alias ohmyzsh="mate ~/.oh-my-zsh"
 alias vi="nvim"
 
+export ES_HOME="$HOME/timfox456"
 
-export NVM_DIR=~/.nvm
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-command -v brew >/dev/null && source $(brew --prefix nvm)/nvm.sh
+# === Version managers =======================================================
+# nvm: prefer the install-deps-managed ~/.nvm, fall back to Homebrew's.
+export NVM_DIR="$HOME/.nvm"
+if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+  . "$NVM_DIR/nvm.sh"
+  [[ -s "$NVM_DIR/bash_completion" ]] && . "$NVM_DIR/bash_completion"
+elif command -v brew >/dev/null 2>&1; then
+  . "$(brew --prefix nvm)"/nvm.sh
+fi
 
+# pyenv
+if command -v pyenv >/dev/null 2>&1; then
+  export PYENV_ROOT="$HOME/.pyenv"
+  case ":$PATH:" in
+    *":$PYENV_ROOT/bin:"*) ;;
+    *) export PATH="$PYENV_ROOT/bin:$PATH" ;;
+  esac
+  eval "$(pyenv init -)"
+  eval "$(pyenv virtualenv-init -)"
+fi
 
-# openai
+# rbenv
+command -v rbenv >/dev/null 2>&1 && eval "$(rbenv init - zsh)"
 
-# OpenAI (Scaia)
+# uv (installer writes this env file)
+[[ -s "$HOME/.local/bin/env" ]] && . "$HOME/.local/bin/env"
 
-
-
-# Google Gemini
-#
-#export GOOGLE_CLOUD_PROJECT="66627734018"
-
-# Anthropic
-#
-
-
-
-
-# Pyenv
-# >>> pyenv start
-export PYENV_ROOT="$HOME/.pyenv"
-command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init -)"
-eval "$(pyenv virtualenv-init -)" # Optional, but recommended for virtualenv management with pyenv
-# <<< pyenv end
-#
-
-
-. "$HOME/.local/bin/env"
-eval "$(rbenv init - zsh)"
-export PATH="/opt/homebrew/opt/openjdk@17/bin:$PATH"
-export CPPFLAGS="-I/opt/homebrew/opt/openjdk@17/include"
-export JAVA_HOME="/Library/Java/JavaVirtualMachines/openjdk-17.jdk/Contents/Home"
-# Set JAVA_HOME for Homebrew OpenJDK 17
-export JAVA_HOME="/opt/homebrew/opt/openjdk@17"
-export PATH="$JAVA_HOME/bin:$PATH"
-
-export PATH="$HOME/.local/bin:$PATH"
-
-# bun completions
-[ -s "/Users/tfox/.bun/_bun" ] && source "/Users/tfox/.bun/_bun"
+# === Machine-local tools (guarded — no-op where not installed) ==============
 
 # bun
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
-export PATH="/Users/tfox/.bun/bin:$PATH"
+if [[ -d "$HOME/.bun" ]]; then
+  export BUN_INSTALL="$HOME/.bun"
+  case ":$PATH:" in
+    *":$BUN_INSTALL/bin:"*) ;;
+    *) export PATH="$BUN_INSTALL/bin:$PATH" ;;
+  esac
+  [[ -s "$BUN_INSTALL/_bun" ]] && source "$BUN_INSTALL/_bun"
+fi
 
-
-# Added by Antigravity
-export PATH="/Users/tfox/.antigravity/antigravity/bin:$PATH"
+# Antigravity (per-machine app)
+[[ -d "$HOME/.antigravity/antigravity/bin" ]] && \
+  export PATH="$HOME/.antigravity/antigravity/bin:$PATH"
 
 # opencode
-export PATH=/Users/tfox/.opencode/bin:$PATH
+[[ -d "$HOME/.opencode/bin" ]] && export PATH="$HOME/.opencode/bin:$PATH"
 
-# openrouter
+# OpenJDK 17 via Homebrew (macOS)
+if [[ "$(uname -s)" == Darwin && -d "/opt/homebrew/opt/openjdk@17" ]]; then
+  export JAVA_HOME="/opt/homebrew/opt/openjdk@17"
+  export CPPFLAGS="-I$JAVA_HOME/include"
+  export PATH="$JAVA_HOME/bin:$PATH"
+fi
 
-# Per-machine secrets (API keys etc.) — moved here from this file when it
-# was adopted into the dotfiles. Never synced, never committed.
+# === Secrets (always last) ==================================================
+# API keys etc. — copied from shell/.config/shell/secrets.local.example.
+# Per machine, mode 600, never synced or committed.
 if [[ -f "$HOME/.config/shell/secrets.local" ]]; then
    # shellcheck shell=sh
    source "$HOME/.config/shell/secrets.local"
