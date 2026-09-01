@@ -50,7 +50,7 @@ curl -fsSL https://raw.githubusercontent.com/timfox456/dotfiles/main/bootstrap.s
 
 Covers: neovim (tarball), tmux (source build), stow, tree-sitter CLI,
 typescript@5 + typescript-language-server (npm global), the base
-toolchain (`git curl wget mosh jq htop gh glab fd tree unzip build-essential ruby
+toolchain (`git curl wget mosh jq htop gh glab lazygit fd tree unzip build-essential ruby
 ripgrep fzf nodejs npm python3 python3-pip python3-venv` — macOS gets the same via
 `Brewfile`), forge CLIs (`gh glab`), cloud CLIs (`aws az gcloud` — vendor
 installers on Linux, Brewfile on macOS), plus tpm with plugins installed

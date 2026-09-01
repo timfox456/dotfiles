@@ -464,6 +464,39 @@ ensure_aws_cli
 ensure_azure_cli
 ensure_gcloud
 
+# --- lazygit (snacks.lazygit / <leader>ug needs the binary) ------------------
+# Not in noble's apt repos — install from GitHub releases, user-local.
+ensure_lazygit() {
+  if command -v lazygit >/dev/null 2>&1; then
+    log "lazygit: $(lazygit --version 2>&1 | head -n1)"
+    return 0
+  fi
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    warn "lazygit missing — install via Brewfile (brew install lazygit)"
+    return 0
+  fi
+  local arch version url
+  case "$(uname -m)" in
+    x86_64) arch="x86_64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *) echo "ERROR: unsupported arch $(uname -m)" >&2; return 1 ;;
+  esac
+  version="$(curl -sS "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" \
+    | grep -oE '"tag_name": *"[^"]*"' | head -n1 | cut -d '"' -f4 | sed 's/^v//' || true)"
+  if [[ -z "$version" ]]; then
+    warn "could not determine lazygit latest version — skipping"
+    return 0
+  fi
+  url="https://github.com/jesseduffield/lazygit/releases/download/v${version}/lazygit_${version}_Linux_${arch}.tar.gz"
+  log "installing lazygit v${version} -> ~/.local/bin"
+  mkdir -p "$HOME/.local/bin"
+  curl -fsSL -o "$TMPDIR_BUILD/lazygit.tar.gz" "$url"
+  tar -C "$TMPDIR_BUILD" -xzf "$TMPDIR_BUILD/lazygit.tar.gz" lazygit
+  install -m 0755 "$TMPDIR_BUILD/lazygit" "$HOME/.local/bin/lazygit"
+  log "lazygit: $(lazygit --version 2>&1 | head -n1)"
+}
+ensure_lazygit
+
 # --- neovim: official release tarball (Linux) / Homebrew (macOS) ------------
 if (( NEED_NVIM )); then
   command -v nvim >/dev/null 2>&1 && remove_apt_package nvim

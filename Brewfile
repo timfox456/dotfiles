@@ -10,6 +10,7 @@ brew "fzf"
 brew "mosh"
 brew "fd"
 brew "tree"
+brew "lazygit"
 
 # Editors / agents
 brew "neovim"
