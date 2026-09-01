@@ -56,6 +56,25 @@ ripgrep fzf nodejs npm python3 python3-pip python3-venv` — macOS gets the same
 installers on Linux, Brewfile on macOS), plus tpm with plugins installed
 non-interactively.
 
+### Runtime managers: nvm now, fnm/mise as the documented future option
+
+Node version management uses **nvm** (installed here, LTS node + default
+alias auto-provisioned when no node versions exist). It works and is
+CI-covered — but two alternatives are worth knowing:
+
+- **fnm** — Rust single-binary node manager; ~5ms shell startup vs nvm's
+  ~50–100ms, no environment-variable quirks, reads `.nvmrc`. The swap is
+  small (one zip binary + `eval "$(fnm env --use-on-cd)"` in the shell rc)
+  and becomes worth it if shell startup on tiny instances ever annoys you.
+- **mise** — the bigger consolidation: one Rust tool replacing nvm **and**
+  pyenv **and** rbenv **and** uv's version management. Consider when the
+  multi-version-manager sprawl across machines becomes the pain point.
+
+Deliberate design note: two node runtimes coexist on servers by design —
+nvm node for interactive use, the apt `nodejs` package as the
+non-interactive fallback for `install-deps.sh`'s npm-global installs.
+Keep that split if you ever migrate managers.
+
 ## Gmail via aerc (OAuth — no app passwords, no 2FA requirement)
 
 `aerc/.config/aerc/` holds a working Gmail-over-XOAUTH2 setup. Google requires
