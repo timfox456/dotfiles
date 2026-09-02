@@ -32,9 +32,21 @@ backup_if_real "$HOME/.config/git/ignore"
 backup_if_real "$HOME/.config/git/gitconfig.local"
 backup_if_real "$HOME/.gitconfig"
 backup_if_real "$HOME/.config/aerc/accounts.conf"
+backup_if_real "$HOME/.config/aerc/mutt_oauth2.py"
 backup_if_real "$HOME/.config/i3/config"
 backup_if_real "$HOME/.zshrc"
 backup_if_real "$HOME/.bashrc"
+backup_if_real "$HOME/.bash_aliases"
+backup_if_real "$HOME/.local/bin/tmux-sessionizer"
+
+# Guardrail: the secrets file must never be group/world readable.
+[[ -f "$HOME/.config/shell/secrets.local" ]] && chmod 600 "$HOME/.config/shell/secrets.local"
+
+# Help: same convention as install-deps.sh
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  grep '^#' "$0" | sed 's/^# \{0,1\}//' | head -14
+  exit 0
+fi
 
 stow --restow -t "$HOME" tmux-common ghostty opencode zerostack git shell bin aerc
 

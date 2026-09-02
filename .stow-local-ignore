@@ -10,3 +10,4 @@ Brewfile\.docker
 \.DS_Store
 terminfo
 gitconfig\.local$
+automatic_backups

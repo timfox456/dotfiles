@@ -59,8 +59,8 @@ desktops (i3)** and **Ubuntu servers**.
 ## Testing
 
 ```bash
-bash -n install.sh install-deps.sh tmux-common/.config/tmux/tmux-sessionizer shell/.bash_aliases
-shellcheck install.sh install-deps.sh tmux-common/.config/tmux/tmux-sessionizer shell/.bash_aliases
+bash -n install.sh install-deps.sh bootstrap.sh bin/.local/bin/tmux-sessionizer shell/.bash_aliases shell/.bashrc
+shellcheck install.sh install-deps.sh bootstrap.sh bin/.local/bin/tmux-sessionizer shell/.bash_aliases shell/.bashrc
 find nvim/.config/nvim/lua -name '*.lua' -print0 | xargs -0 -n1 luac -p
 ./install-deps.sh --check          # version report, changes nothing
 tmux -L test -f tmux/.config/tmux/tmux.conf new-session -d   # then kill-server

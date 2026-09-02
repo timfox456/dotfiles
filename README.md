@@ -135,7 +135,7 @@ your username, not ask for a password). On work machines the employer's key
 
 Covers: neovim (tarball), tmux (source build), stow, tree-sitter CLI,
 typescript@5 + typescript-language-server (npm global), the base
-toolchain (`git curl wget mosh jq htop gh glab lazygit fd tree unzip build-essential ruby
+toolchain (`git curl wget mosh jq htop gh glab aerc lazygit fd tree unzip build-essential ruby
 ripgrep fzf nodejs npm python3 python3-pip python3-venv` — macOS gets the same via
 `Brewfile`), forge CLIs (`gh glab`), cloud CLIs (`aws az gcloud` — vendor
 installers on Linux, Brewfile on macOS), plus tpm with plugins installed
