@@ -1,82 +1,113 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-cd "$(dirname "$0")"
-
-# Packages mirror the $HOME layout (pkg/.config/...), so everything stows to $HOME.
+# Dotfiles installer — stows every package to $HOME.
 #
-# nvim:  tree-folds into a whole-dir symlink; state lives in ~/.local/share/nvim
-# tmux:  pre-created dir -> file-links configs, tpm plugins stay machine-local
-# ghostty/opencode: same file-link pattern; opencode keeps node_modules etc.
-#        machine-local in ~/.config/opencode
-# i3:    Linux desktops only (--server skips it)
+# Usage:
+#   ./install.sh             # desktop (tmux prefix C-b, i3 on Linux)
+#   ./install.sh --server    # servers (tmux prefix C-a)
+#   ./install.sh --help
+#
+# Packages mirror the $HOME layout (pkg/.config/...). Stow conflicts are
+# resolved automatically: targets owned by another of our packages are
+# unstowed (tmux variant swaps), anything else is backed up aside. Secrets
+# never enter this repo — they are per-machine files we only chmod.
 
-mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" "$HOME/.config/opencode" "$HOME/.config/zerostack" "$HOME/.config/git" "$HOME/.config/shell" "$HOME/.config/aerc" "$HOME/.local/bin" "$HOME/.local/share/aerc"
+set -euo pipefail
+cd "$(dirname "$0")"
+REPO_DIR="$PWD"
 
-# Stow refuses to clobber real files/dirs — back up anything in the way.
-backup_if_real() {
-  if [[ -e "$1" && ! -L "$1" ]]; then
-    local bak="$1.bak"
-    [[ -e "$bak" ]] && bak="$1.bak.$(date +%Y%m%d%H%M%S)"
-    mv "$1" "$bak"
-    echo "backed up: $1 -> $bak"
-  fi
+usage() {
+  sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+  exit 0
 }
-backup_if_real "$HOME/.config/nvim"
-backup_if_real "$HOME/.config/tmux/tmux.conf"
-backup_if_real "$HOME/.config/tmux/common.conf"
-backup_if_real "$HOME/.config/ghostty/config"
-backup_if_real "$HOME/.config/opencode/opencode.json"
-backup_if_real "$HOME/.config/zerostack/config.toml"
-backup_if_real "$HOME/.config/git/ignore"
-backup_if_real "$HOME/.config/git/gitconfig.local"
-backup_if_real "$HOME/.gitconfig"
-backup_if_real "$HOME/.config/aerc/accounts.conf"
-backup_if_real "$HOME/.config/aerc/mutt_oauth2.py"
-backup_if_real "$HOME/.config/i3/config"
-backup_if_real "$HOME/.zshrc"
-backup_if_real "$HOME/.bashrc"
-backup_if_real "$HOME/.bash_aliases"
-backup_if_real "$HOME/.local/bin/tmux-sessionizer"
+[[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && usage
+
+mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" "$HOME/.config/opencode" \
+         "$HOME/.config/zerostack" "$HOME/.config/git" "$HOME/.config/shell" \
+         "$HOME/.config/aerc" "$HOME/.local/bin" "$HOME/.local/share/aerc" \
+         "$HOME/.local/state/nvim"
 
 # Guardrail: the secrets file must never be group/world readable.
 [[ -f "$HOME/.config/shell/secrets.local" ]] && chmod 600 "$HOME/.config/shell/secrets.local"
 
-# Help: same convention as install-deps.sh
-if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
-  grep '^#' "$0" | sed 's/^# \{0,1\}//' | head -14
-  exit 0
-fi
+# --- stow conflict resolution ------------------------------------------------
+# Before the real stow, simulate it and resolve every "existing target"
+# complaint: if the conflicting target belongs to another of OUR packages
+# (tmux <-> tmux-server variant swaps), unstow that package; anything else
+# (a pre-existing real file/dir or a foreign symlink) is moved aside with a
+# timestamped backup. Never uses stow --adopt: adopting would pull machine
+# files into this public repo.
+resolve_stow_conflicts() {
+  local round target resolved owner bak
+  local -a targets
+  for round in 1 2 3 4 5; do
+    targets=()
+    # stow reports each conflict TWICE (CONFLICT line + target line) with
+    # version-dependent formats — extract the path, then dedup (sort -u):
+    #   variant links (2.3.x/2.4.x): "... stowed to a different package: P => Q"
+    #   2.4.x real files: "CONFLICT when stowing pkg: ... over existing target P since ..."
+    #   2.3.x real files: "  * existing target is neither a link nor a directory: P"
+    # Case order matters: the greedy-colon fallback must stay LAST and narrowed
+    # to "neither", or it matches the 2.4 CONFLICT line and produces garbage.
+    while IFS= read -r target; do
+      [[ -z "$target" ]] && continue
+      targets+=("$target")
+    done < <(stow -n -t "$HOME" -v 2 "$@" 2>&1 \
+      | grep -E "existing target" \
+      | sed -E '
+          s/.*stowed to a different package:[[:space:]]*([^[:space:]]*).*/\1/; t
+          s/.*over existing target[[:space:]]+//; t
+          s/.*existing target is neither a link nor a directory:[[:space:]]*//
+        ' | sort -u || true)
+    ((${#targets[@]})) || return 0
 
-stow --restow -t "$HOME" tmux-common ghostty opencode zerostack git shell bin aerc
+    for target in "${targets[@]}"; do
+      [[ -z "$target" ]] && continue
+      resolved="$(readlink -f "$HOME/$target" 2>/dev/null || echo "$HOME/$target")"
+      owner=""
+      # Ownership scan covers ALL repo packages (not just this run's list) —
+      # the opposite tmux variant is never in the current run's list, yet its
+      # conflicts must be unstowed, not backed up.
+      for dir in "$REPO_DIR"/*/; do
+        pkg="$(basename "$dir")"
+        [[ "$resolved" == "$dir"* || "$resolved" == "${dir%/}" ]] && { owner="$pkg"; break; }
+      done
+      if [[ -n "$owner" ]]; then
+        echo "unstowing conflicting package: $owner (owns $target)"
+        stow -D -t "$HOME" "$owner" 2>/dev/null || true
+      else
+        bak="$HOME/${target}.bak.$(date +%Y%m%d%H%M%S)"
+        mkdir -p "$(dirname "$bak")"
+        mv "$HOME/$target" "$bak"
+        echo "backed up: $HOME/$target -> $bak"
+      fi
+    done
+  done
+  echo "ERROR: stow conflicts persist after $round rounds — resolve manually" >&2
+  return 1
+}
 
+# --- package selection -------------------------------------------------------
+STOW_PKGS=(tmux-common ghostty opencode zerostack git shell bin aerc nvim)
 if [[ "${1:-}" == "--server" ]]; then
-  # Variant swap: the opposite tmux package must be unstowed first, or stow
-  # aborts with "stowed to a different package" (target .config/tmux/tmux.conf).
-  stow -D -t "$HOME" tmux 2>/dev/null || true
-  stow --restow -t "$HOME" nvim tmux-server
-  echo "Linked: nvim, tmux-common, tmux-server, ghostty, opencode, git, shell, zerostack, aerc (prefix C-a)"
+  STOW_PKGS+=(tmux-server)
 else
-  stow -D -t "$HOME" tmux-server 2>/dev/null || true
-  stow --restow -t "$HOME" nvim tmux
-  if [[ "$(uname -s)" == "Linux" ]]; then
-    mkdir -p "$HOME/.config/i3"
-    stow --restow -t "$HOME" i3
-    echo "note: Linux without --server — stowing the DESKTOP tmux variant and i3; pass --server on headless machines"
-    echo "Linked: nvim, tmux-common, tmux, ghostty, opencode, git, shell, zerostack, aerc, i3 (desktop)"
-  else
-    echo "Linked: nvim, tmux-common, tmux, ghostty, opencode, git, shell, zerostack, aerc (desktop)"
-  fi
+  STOW_PKGS+=(tmux)
+  [[ "$(uname -s)" == "Linux" ]] && STOW_PKGS+=(i3)
 fi
 
-# Finish tpm setup now that the config (with the @plugin list) is linked.
-# ...and converge the machine-local lazy lockfile to the repo's canonical pins.
-# lazy writes its lockfile to the state dir (machine-local); the repo copy only
-# changes via bin/lazy-lock-sync after deliberate plugin updates.
+resolve_stow_conflicts "${STOW_PKGS[@]}"
+stow --restow -t "$HOME" "${STOW_PKGS[@]}"
+echo "Linked: ${STOW_PKGS[*]}"
+
+# --- post-stow: lazy lockfile convergence ------------------------------------
+# lazy writes its lockfile to the state dir (machine-local); the repo copy
+# only changes via bin/lazy-lock-sync after deliberate plugin updates.
 if [[ -f "$HOME/.config/nvim/lazy-lock.json" ]]; then
   mkdir -p "$HOME/.local/state/nvim"
   cp "$HOME/.config/nvim/lazy-lock.json" "$HOME/.local/state/nvim/lazy-lock.json"
 fi
+
+# --- tpm ---------------------------------------------------------------------
 TPM_INSTALL=""
 for cand in "$HOME/.config/tmux/plugins/tpm/bin/install_plugins" \
             "$HOME/.config/tmux/plugins/tpm/bin/install_plugins.sh"; do
@@ -87,3 +118,6 @@ if [[ -n "$TPM_INSTALL" ]]; then
 else
   echo "note: tpm not found — run ./install-deps.sh, then prefix + I inside tmux"
 fi
+
+[[ "${1:-}" == "--server" ]] && \
+  echo "note: server variant linked. remaining manual steps are in the README (secrets, git identity, ssh, gmail)." || true
