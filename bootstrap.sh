@@ -23,5 +23,6 @@ echo
 echo "bootstrap done. remaining manual steps:"
 echo "  - secrets:  cp ~/.config/shell/secrets.local.example ~/.config/shell/secrets.local (chmod 600, edit)"
 echo "  - git id:   work machines — cp ~/.config/git/gitconfig.local.example ~/.config/git/gitconfig.local (edit)"
+echo "  - ssh keys: see README 'SSH keys — GitHub / GitLab' (generate, publish, ~/.ssh/config)"
 echo "  - gmail:    see README 'Gmail via aerc' (OAuth client + one-time authorize)"
 echo "  - tmux:     prefix + I if plugins are missing"

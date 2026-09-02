@@ -76,6 +76,54 @@ See the "Gmail via aerc" section below: paste the OAuth client id/secret into
 `mutt_oauth2.py`, then authorize (desktop flow, or device flow / token copy
 on headless servers). Tokens live in `~/.local/share/aerc/` — machine-local.
 
+### 4. SSH keys — GitHub / GitLab
+
+Private keys are per-machine and never leave it (same rule as secrets.local).
+Generate one per machine, publish the public half to the forge, and pin the
+mapping in `~/.ssh/config`:
+
+```bash
+# generate (one key per machine, distinct file per forge)
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+ssh-keygen -t ed25519 -C "tfox@$(hostname -s)" -f ~/.ssh/id_ed25519_github -N ""
+ssh-keygen -t ed25519 -C "tfox@$(hostname -s)" -f ~/.ssh/id_ed25519_gitlab -N ""
+```
+
+`~/.ssh/config` (create if absent, `chmod 600`):
+
+```ssh-config
+Host github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519_github
+    IdentitiesOnly yes
+
+Host gitlab.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519_gitlab
+    IdentitiesOnly yes
+
+# self-managed GitLab at work: one Host block per instance
+# Host gitlab.myemployer.com
+#     User git
+#     IdentityFile ~/.ssh/id_ed25519_gitlab
+#     IdentitiesOnly yes
+```
+
+Publish the public keys:
+
+```bash
+# GitHub: paste ~/.ssh/id_ed25519_github.pub at
+#   https://github.com/settings/keys — or via the CLI:
+gh ssh-key add ~/.ssh/id_ed25519_github.pub --title "$(hostname -s)"
+# GitLab: https://gitlab.com/-/user_settings/ssh-keys — or:
+glab ssh-key add ~/.ssh/id_ed25519_gitlab.pub --title "$(hostname -s)"
+```
+
+Test: `ssh -T git@github.com` and `ssh -T git@gitlab.com` (both should greet
+your username, not ask for a password). On work machines the employer's key
++ host block replaces the gitlab.com one, and the email in
+`gitconfig.local` should match the account that key belongs to.
+
 ## Ubuntu / tooling
 
 `install-deps.sh` installs and pins what the setup needs:
