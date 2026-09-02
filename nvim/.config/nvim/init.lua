@@ -14,8 +14,6 @@ if not vim.uv.fs_stat(lazypath) then
   })
 end
 vim.opt.rtp:prepend(lazypath)
-local opts = {}
-
 
 require("vim-options")
 -- Lockfile lives in the state dir (machine-local), NOT in this stowed config:
@@ -25,6 +23,4 @@ require("vim-options")
 require("lazy").setup("plugins", {
   lockfile = vim.fn.stdpath("state") .. "/lazy-lock.json",
 })
-
-vim.wo.number = true
 
