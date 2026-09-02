@@ -189,6 +189,7 @@ ensure_brew_bundle_docker
 
 log "detected: nvim=${NVIM_CUR:-missing}, tmux=${TMUX_CUR:-missing}"
 if [[ -r /etc/os-release ]]; then
+  # shellcheck source=/dev/null
   . /etc/os-release
   log "distro: ${NAME} ${VERSION_ID:-} ${VERSION_CODENAME:-}"
   unset NAME VERSION_ID VERSION_CODENAME
