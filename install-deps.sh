@@ -117,6 +117,9 @@ remove_apt_package() {
 }
 
 # Ensure apt packages are installed (no-op on systems without dpkg, e.g. macOS).
+# Batch-first for speed; if the batch fails (one package unavailable on an older
+# release — e.g. glab missing from bookworm), retry per-package so a single
+# gap never blocks the rest of the toolchain.
 ensure_apt_packages() {
   command -v dpkg >/dev/null 2>&1 || return 0
   local missing=() pkg
@@ -130,7 +133,12 @@ ensure_apt_packages() {
   fi
   log "installing apt packages: ${missing[*]}"
   $SUDO env DEBIAN_FRONTEND=noninteractive apt-get update -qq
-  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${missing[@]}"
+  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${missing[@]}" && return 0
+  warn "batch install failed — retrying per-package (older releases lack some tools)"
+  for pkg in "${missing[@]}"; do
+    $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$pkg" \
+      || warn "unavailable on this release: $pkg (skipped)"
+  done
 }
 
 current_nvim_version() {
@@ -180,6 +188,11 @@ ensure_brew_bundle_docker() {
 ensure_brew_bundle_docker
 
 log "detected: nvim=${NVIM_CUR:-missing}, tmux=${TMUX_CUR:-missing}"
+if [[ -r /etc/os-release ]]; then
+  . /etc/os-release
+  log "distro: ${NAME} ${VERSION_ID:-} ${VERSION_CODENAME:-}"
+  unset NAME VERSION_ID VERSION_CODENAME
+fi
 log "targets:  nvim>=${MIN_NVIM_VERSION} (install ${NVIM_VERSION}), tmux>=${MIN_TMUX_VERSION} (install ${TMUX_VERSION})"
 
 if [[ -z "$NVIM_CUR" ]] || ! ver_ge "$NVIM_CUR" "$MIN_NVIM_VERSION"; then
