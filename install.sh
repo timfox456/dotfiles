@@ -38,13 +38,18 @@ backup_if_real "$HOME/.bashrc"
 stow --restow -t "$HOME" tmux-common ghostty opencode zerostack git shell bin aerc
 
 if [[ "${1:-}" == "--server" ]]; then
+  # Variant swap: the opposite tmux package must be unstowed first, or stow
+  # aborts with "stowed to a different package" (target .config/tmux/tmux.conf).
+  stow -D -t "$HOME" tmux 2>/dev/null || true
   stow --restow -t "$HOME" nvim tmux-server
   echo "Linked: nvim, tmux-common, tmux-server, ghostty, opencode, git, shell, zerostack, aerc (prefix C-a)"
 else
+  stow -D -t "$HOME" tmux-server 2>/dev/null || true
   stow --restow -t "$HOME" nvim tmux
   if [[ "$(uname -s)" == "Linux" ]]; then
     mkdir -p "$HOME/.config/i3"
     stow --restow -t "$HOME" i3
+    echo "note: Linux without --server — stowing the DESKTOP tmux variant and i3; pass --server on headless machines"
     echo "Linked: nvim, tmux-common, tmux, ghostty, opencode, git, shell, zerostack, aerc, i3 (desktop)"
   else
     echo "Linked: nvim, tmux-common, tmux, ghostty, opencode, git, shell, zerostack, aerc (desktop)"
