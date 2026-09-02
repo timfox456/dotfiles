@@ -18,6 +18,8 @@ case ":$PATH:" in
   *":$HOME/.local/bin:"*) ;;
   *) export PATH="$HOME/.local/bin:$PATH" ;;
 esac
+[[ -s "$HOME/.local/bin/env" ]] && { # shellcheck shell=sh disable=SC1091
+   . "$HOME/.local/bin/env"; }
 
 # nvm (node version manager) — loaded only on machines where install-deps.sh
 # put it (~/.nvm exists). Lazy-free but costs ~50ms per shell; remove here
