@@ -41,6 +41,41 @@ curl -fsSL https://raw.githubusercontent.com/timfox456/dotfiles/main/bootstrap.s
 - tmux plugins (tpm) are machine-local in `~/.config/tmux/plugins`;
   press `prefix + I` inside tmux to install them.
 
+## Manual steps on a new machine
+
+Everything else is automated by `install.sh` + `install-deps.sh`. Exactly two
+things are per-machine on purpose — they contain secrets or identity
+information that must never live in this public repo:
+
+### 1. Secrets — `~/.config/shell/secrets.local`
+
+```bash
+cp ~/.config/shell/secrets.local.example ~/.config/shell/secrets.local
+chmod 600 ~/.config/shell/secrets.local
+# edit: API keys — OPENROUTER_API_KEY (zerostack), OPENAI_API_KEY,
+# ANTHROPIC_API_KEY, GEMINI_API_KEY, ...
+```
+
+Sourced last by both `.bashrc`/`.bash_aliases` (servers) and `.zshrc` (Macs).
+Never synced, never committed.
+
+### 2. Git identity — `~/.config/git/gitconfig.local` (work machines)
+
+```bash
+cp ~/.config/git/gitconfig.local.example ~/.config/git/gitconfig.local
+# edit: name + the email for that employer
+```
+
+The stowed `.gitconfig` includes this file last, so it overrides the personal
+default identity. Personal machines: skip this step entirely.
+Verify per machine: `git config --show-origin --global --includes user.email`
+
+### 3. Gmail OAuth (aerc) — one-time per machine
+
+See the "Gmail via aerc" section below: paste the OAuth client id/secret into
+`mutt_oauth2.py`, then authorize (desktop flow, or device flow / token copy
+on headless servers). Tokens live in `~/.local/share/aerc/` — machine-local.
+
 ## Ubuntu / tooling
 
 `install-deps.sh` installs and pins what the setup needs:
@@ -149,6 +184,10 @@ colima for OrbStack (edit `Brewfile.docker`).
 Packages mirror the `$HOME` layout (`<pkg>/.config/...`):
 
 ```bash
-stow --restow -t ~ nvim tmux tmux-common ghostty opencode    # desktop
-stow --restow -t ~ nvim tmux-server tmux-common ghostty opencode
+stow --restow -t ~ nvim tmux tmux-common ghostty opencode zerostack git shell bin aerc    # desktop
+stow --restow -t ~ nvim tmux-server tmux-common ghostty opencode zerostack git shell bin aerc
 ```
+
+(`install.sh` is the supported entry point — it unstows the opposite tmux
+variant, seeds the lazy lockfile and handles the ordering. The manual form
+is for surgery.)
