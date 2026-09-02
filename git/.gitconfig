@@ -15,6 +15,13 @@
 	conflictstyle = zdiff3
 [rerere]
 	enabled = true
+
+# Per-machine identity override (untracked) — work/corporate Macs set their
+# job identity in ~/.config/git/gitconfig.local (see gitconfig.local.example).
+# Processed last, so it overrides the personal default above; a missing file
+# is silently ignored, so personal machines need nothing.
+[include]
+	path = ~/.config/git/gitconfig.local
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f

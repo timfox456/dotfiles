@@ -1,0 +1,8 @@
+# Per-machine git identity — copy to ~/.config/git/gitconfig.local on
+# work/corporate machines. This file is untracked (never synced, never
+# committed) and overrides the identity in the stowed ~/.gitconfig, which
+# includes it last on purpose. Leave unset on personal machines.
+
+[user]
+	name = Tim Fox
+	email = you@your-employer.example

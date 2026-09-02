@@ -9,3 +9,4 @@ Brewfile\.docker
 \.bak$
 \.DS_Store
 terminfo
+gitconfig\.local$
