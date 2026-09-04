@@ -139,7 +139,7 @@ your username, not ask for a password). On work machines the employer's key
 Covers: neovim (tarball), tmux (source build), stow, tree-sitter CLI,
 typescript@5 + typescript-language-server (npm global), the base
 toolchain (`git curl wget mosh jq htop gh glab aerc lazygit fd tree unzip build-essential ruby
-ripgrep fzf nodejs npm python3 python3-pip python3-venv` — macOS gets the same via
+ripgrep fzf python3 python3-pip python3-venv` — macOS gets the same via
 `Brewfile`), forge CLIs (`gh glab`), cloud CLIs (`aws az gcloud` — vendor
 installers on Linux, Brewfile on macOS), plus tpm with plugins installed
 non-interactively.
@@ -158,10 +158,10 @@ CI-covered — but two alternatives are worth knowing:
   pyenv **and** rbenv **and** uv's version management. Consider when the
   multi-version-manager sprawl across machines becomes the pain point.
 
-Deliberate design note: two node runtimes coexist on servers by design —
-nvm node for interactive use, the apt `nodejs` package as the
-non-interactive fallback for `install-deps.sh`'s npm-global installs.
-Keep that split if you ever migrate managers.
+Deliberate design note: node comes from nvm (LTS) on all machines — both
+interactive shells and Mason's npm-based LSP servers resolve through it.
+The apt `nodejs` package is no longer installed; it only gets pulled in as
+a fallback if nvm is missing or broken on a machine.
 
 ## Gmail via aerc (OAuth — no app passwords, no 2FA requirement)
 

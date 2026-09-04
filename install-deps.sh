@@ -30,7 +30,9 @@ MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs 
 #   stow -> install.sh (dotfiles linking; noble ships 2.3.1, fully sufficient)
 #   rg -> telescope live_grep          fzf -> tmux-fzf
 #   git -> lazy.nvim, tpm              build-essential -> treesitter parser builds
-#   node/npm -> mason (pyright, typescript-language-server)
+#   node/npm -> NOT apt-installed: nvm provides node LTS (see ensure_nvm);
+#              mason + npm-globals use it. apt nodejs/npm only as a fallback
+#              if nvm is broken (handled in ensure_npm_globals).
 #   python3/pip/venv -> mason (ruff, black, isort, mypy, pylint, debugpy)
 #   unzip -> some mason packages
 #   mosh -> roaming/persistent SSH sessions (pairs with tmux; needs UDP 60000-61000)
@@ -38,7 +40,7 @@ MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs 
 #   ruby -> mason: rubocop (gem install; noble ships 3.2 + gem)
 #   fd-find -> telescope/nvim find_files (Ubuntu names the binary fdfind —
 #              symlinked to fd below); tree -> directory listing
-TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop gh glab aerc fd-find tree nodejs npm python3 python3-pip python3-venv ruby)
+TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop gh glab aerc fd-find tree python3 python3-pip python3-venv ruby)
 
 MODE="install"
 PREFIX="/usr/local"
@@ -133,10 +135,10 @@ ensure_apt_packages() {
   fi
   log "installing apt packages: ${missing[*]}"
   $SUDO env DEBIAN_FRONTEND=noninteractive apt-get update -qq
-  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "${missing[@]}" && return 0
+  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -qq "${missing[@]}" && return 0
   warn "batch install failed — retrying per-package (older releases lack some tools)"
   for pkg in "${missing[@]}"; do
-    $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$pkg" \
+    $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -qq "$pkg" \
       || warn "unavailable on this release: $pkg (skipped)"
   done
 }
@@ -280,60 +282,6 @@ ensure_tree_sitter_cli() {
 }
 ensure_tree_sitter_cli
 
-# --- typescript-language-server (removed from mason registry; npm global) ----
-ensure_npm_globals() {
-  command -v npm >/dev/null 2>&1 || { warn "npm not found — skipping typescript-language-server install"; return 0; }
-  # npm -g install is idempotent: upgrades when newer exists, quick no-op when
-  # current. This also repairs bad installs (e.g. typescript@7 alongside a
-  # typescript-language-server that requires typescript@5).
-  log "ensuring typescript@5 + typescript-language-server (npm global)"
-  if [[ -w "$(npm config get prefix)/lib" || -w "$(npm config get prefix)" ]]; then
-    npm install -g -q "typescript@5" typescript-language-server \
-      || warn "npm install failed — run 'npm i -g typescript@5 typescript-language-server' manually"
-  else
-    log "npm prefix not writable — using sudo"
-    $SUDO env npm install -g -q "typescript@5" typescript-language-server \
-      || warn "npm install failed — run 'sudo npm i -g typescript@5 typescript-language-server' manually"
-  fi
-  command -v typescript-language-server >/dev/null 2>&1 && \
-    log "typescript-language-server: $(typescript-language-server --version 2>&1 | head -n1)"
-}
-ensure_npm_globals
-
-# --- ghostty terminfo (so TERM=xterm-ghostty works on servers) ---------------
-# Vendored terminfo source; installs user-local to ~/.terminfo (no sudo).
-ensure_ghostty_terminfo() {
-  if infocmp -x xterm-ghostty >/dev/null 2>&1; then
-    log "terminfo xterm-ghostty: present"
-    return 0
-  fi
-  command -v tic >/dev/null 2>&1 || { warn "tic not found — skipping ghostty terminfo install"; return 0; }
-  if [[ ! -f terminfo/xterm-ghostty.terminfo ]]; then
-    warn "terminfo/xterm-ghostty.terminfo missing from repo — skipping"
-    return 0
-  fi
-  tic -x terminfo/xterm-ghostty.terminfo \
-    && log "installed terminfo xterm-ghostty -> $HOME/.terminfo"
-}
-ensure_ghostty_terminfo
-
-# --- zerostack (tiny Rust coding agent — fits 1GB instances) -----------------
-# Official install script (prebuilt binary, near-instant even on small vCPUs).
-ensure_zerostack() {
-  if command -v zerostack >/dev/null 2>&1; then
-    log "zerostack: $(zerostack --version 2>/dev/null | head -n1)"
-  else
-    log "installing zerostack (official install script)"
-    curl -fsSL https://raw.githubusercontent.com/gi-dellav/zerostack/main/install.sh | bash \
-      || warn "zerostack install failed — see https://github.com/gi-dellav/zerostack#installation"
-  fi
-  # Config comes from install.sh (stowed ~/.config/zerostack/config.toml —
-  # secret-free; the API key resolves from OPENROUTER_API_KEY at runtime).
-  command -v zerostack >/dev/null 2>&1 && \
-    echo "note: put OPENROUTER_API_KEY in ~/.config/shell/secrets.local (per machine — never in shell rc files or this repo)"
-}
-ensure_zerostack
-
 # --- nvm + uv (per-machine dev tooling; user-local, no sudo) -----------------
 ensure_nvm() {
   # env -u PREFIX: nvm refuses to run when PREFIX is set (the script sets it),
@@ -391,6 +339,76 @@ ensure_uv() {
 }
 ensure_nvm
 ensure_uv
+
+# --- typescript-language-server (removed from mason registry; npm global) ----
+ensure_npm_globals() {
+  # Runs in a subshell with PREFIX unset: nvm refuses to operate when it is
+  # set, and nothing here needs the installer's global PREFIX. node/npm come
+  # from nvm (LTS installed above); apt nodejs+npm is only a fallback if nvm
+  # is missing/broken — keeps the apt footprint lean.
+  (
+    unset PREFIX
+    if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+      # shellcheck source=/dev/null
+      . "$HOME/.nvm/nvm.sh"
+    fi
+    if ! command -v npm >/dev/null 2>&1; then
+      warn "npm still missing — falling back to apt nodejs+npm"
+      ensure_apt_packages nodejs npm
+    fi
+    command -v npm >/dev/null 2>&1 || { warn "npm not found — skipping typescript-language-server install"; return 0; }
+    # npm -g install is idempotent: upgrades when newer exists, quick no-op when
+    # current. This also repairs bad installs (e.g. typescript@7 alongside a
+    # typescript-language-server that requires typescript@5).
+    log "ensuring typescript@5 + typescript-language-server (npm global)"
+    if [[ -w "$(npm config get prefix)/lib" || -w "$(npm config get prefix)" ]]; then
+      npm install -g -q "typescript@5" typescript-language-server \
+        || warn "npm install failed — run 'npm i -g typescript@5 typescript-language-server' manually"
+    else
+      log "npm prefix not writable — using sudo"
+      $SUDO env npm install -g -q "typescript@5" typescript-language-server \
+        || warn "npm install failed — run 'sudo npm i -g typescript@5 typescript-language-server' manually"
+    fi
+    command -v typescript-language-server >/dev/null 2>&1 && \
+      log "typescript-language-server: $(typescript-language-server --version 2>&1 | head -n1)"
+  ) || warn "npm globals stage failed"
+}
+ensure_npm_globals
+
+# --- ghostty terminfo (so TERM=xterm-ghostty works on servers) ---------------
+# Vendored terminfo source; installs user-local to ~/.terminfo (no sudo).
+ensure_ghostty_terminfo() {
+  if infocmp -x xterm-ghostty >/dev/null 2>&1; then
+    log "terminfo xterm-ghostty: present"
+    return 0
+  fi
+  command -v tic >/dev/null 2>&1 || { warn "tic not found — skipping ghostty terminfo install"; return 0; }
+  if [[ ! -f terminfo/xterm-ghostty.terminfo ]]; then
+    warn "terminfo/xterm-ghostty.terminfo missing from repo — skipping"
+    return 0
+  fi
+  tic -x terminfo/xterm-ghostty.terminfo \
+    && log "installed terminfo xterm-ghostty -> $HOME/.terminfo"
+}
+ensure_ghostty_terminfo
+
+# --- zerostack (tiny Rust coding agent — fits 1GB instances) -----------------
+# Official install script (prebuilt binary, near-instant even on small vCPUs).
+ensure_zerostack() {
+  if command -v zerostack >/dev/null 2>&1; then
+    log "zerostack: $(zerostack --version 2>/dev/null | head -n1)"
+  else
+    log "installing zerostack (official install script)"
+    curl -fsSL https://raw.githubusercontent.com/gi-dellav/zerostack/main/install.sh | bash \
+      || warn "zerostack install failed — see https://github.com/gi-dellav/zerostack#installation"
+  fi
+  # Config comes from install.sh (stowed ~/.config/zerostack/config.toml —
+  # secret-free; the API key resolves from OPENROUTER_API_KEY at runtime).
+  command -v zerostack >/dev/null 2>&1 && \
+    echo "note: put OPENROUTER_API_KEY in ~/.config/shell/secrets.local (per machine — never in shell rc files or this repo)"
+}
+ensure_zerostack
+
 
 # --- oh-my-zsh (macOS only — Linux servers run bash) -------------------------
 ensure_omz() {
@@ -471,7 +489,7 @@ ensure_gcloud() {
   echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \
     | $SUDO tee /etc/apt/sources.list.d/google-cloud-sdk.list >/dev/null
   $SUDO apt-get update -qq
-  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq google-cloud-cli \
+  $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y -qq google-cloud-cli \
     || warn "gcloud install failed — see https://cloud.google.com/sdk/docs/install-apt"
 }
 ensure_aws_cli
