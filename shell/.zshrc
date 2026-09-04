@@ -46,7 +46,8 @@ if command -v pyenv >/dev/null 2>&1; then
     *) export PATH="$PYENV_ROOT/bin:$PATH" ;;
   esac
   eval "$(pyenv init -)"
-  eval "$(pyenv virtualenv-init -)"
+  # pyenv-virtualenv is an optional plugin — tolerate machines without it
+  eval "$(pyenv virtualenv-init - 2>/dev/null || true)"
 fi
 
 # rbenv
