@@ -2,8 +2,10 @@
 # Dotfiles installer — stows every package to $HOME.
 #
 # Usage:
-#   ./install.sh             # desktop (tmux prefix C-b, i3 on Linux)
-#   ./install.sh --server    # servers (tmux prefix C-a)
+#   ./install.sh             # variant autodetected: macOS/Linux-desktop = desktop,
+#                            # headless Linux (no DISPLAY) = server
+#   ./install.sh --server    # force server variant (tmux prefix C-a)
+#   ./install.sh --desktop   # force desktop variant (tmux prefix C-b, i3 on Linux)
 #   ./install.sh --help
 #
 # Packages mirror the $HOME layout (pkg/.config/...). Stow conflicts are
@@ -16,10 +18,9 @@ cd "$(dirname "$0")"
 REPO_DIR="$PWD"
 
 usage() {
-  sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 }
-[[ "${1:-}" == "-h" || "${1:-}" == "--help" ]] && usage
 
 mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" "$HOME/.config/opencode" \
          "$HOME/.config/zerostack" "$HOME/.config/git" "$HOME/.config/shell" \
@@ -86,9 +87,30 @@ resolve_stow_conflicts() {
   return 1
 }
 
-# --- package selection -------------------------------------------------------
+# --- variant selection -------------------------------------------------------
+# --server / --desktop force it. Otherwise: macOS is always a desktop, and
+# Linux autodetects headless via DISPLAY (servers have none).
+VARIANT=""
+for arg in "$@"; do
+  case "$arg" in
+    --server)  VARIANT="server" ;;
+    --desktop) VARIANT="desktop" ;;
+    -h|--help) usage ;;
+    *) echo "unknown option: $arg (see --help)" >&2; exit 1 ;;
+  esac
+done
+if [[ -z "$VARIANT" ]]; then
+  if [[ "$(uname -s)" == "Linux" && -z "${DISPLAY:-}" ]]; then
+    VARIANT="server"
+    echo "variant: server (headless autodetected — no DISPLAY)"
+  else
+    VARIANT="desktop"
+    echo "variant: desktop"
+  fi
+fi
+
 STOW_PKGS=(tmux-common ghostty opencode zerostack git shell bin aerc nvim)
-if [[ "${1:-}" == "--server" ]]; then
+if [[ "$VARIANT" == "server" ]]; then
   STOW_PKGS+=(tmux-server)
 else
   STOW_PKGS+=(tmux)
@@ -97,7 +119,7 @@ fi
 
 resolve_stow_conflicts "${STOW_PKGS[@]}"
 stow --restow -t "$HOME" "${STOW_PKGS[@]}"
-echo "Linked: ${STOW_PKGS[*]}"
+echo "Linked (${VARIANT}): ${STOW_PKGS[*]}"
 
 # --- post-stow: lazy lockfile convergence ------------------------------------
 # lazy writes its lockfile to the state dir (machine-local); the repo copy

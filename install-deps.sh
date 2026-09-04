@@ -330,7 +330,7 @@ ensure_zerostack() {
   # Config comes from install.sh (stowed ~/.config/zerostack/config.toml —
   # secret-free; the API key resolves from OPENROUTER_API_KEY at runtime).
   command -v zerostack >/dev/null 2>&1 && \
-    warn "remember: export OPENROUTER_API_KEY=\"sk-or-...\" in ~/.bashrc (per machine)"
+    echo "note: put OPENROUTER_API_KEY in ~/.config/shell/secrets.local (per machine — never in shell rc files or this repo)"
 }
 ensure_zerostack
 

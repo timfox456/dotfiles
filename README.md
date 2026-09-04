@@ -10,8 +10,10 @@ desktops (i3) and Ubuntu servers.
 brew install stow        # macOS
 sudo apt install stow    # Ubuntu
 
-./install.sh             # desktop (tmux prefix C-b; stows i3 on Linux)
-./install.sh --server    # servers (tmux prefix C-a)
+./install.sh             # variant autodetected: headless Linux (no DISPLAY)
+                         # = server (prefix C-a); everything else = desktop
+./install.sh --server    # force server variant
+./install.sh --desktop   # force desktop variant
 ```
 
 Or bootstrap a fresh machine in one shot:
@@ -37,7 +39,8 @@ curl -fsSL https://raw.githubusercontent.com/timfox456/dotfiles/main/bootstrap.s
 - **zerostack** — tiny Rust agent for small instances (opencode is too heavy
   for 1GB boxes). `install-deps.sh` installs it via the official script; its
   stowed config is secret-free by design (key resolves from
-  `OPENROUTER_API_KEY` in your shell rc — never add keys to the stowed file).
+  `OPENROUTER_API_KEY` in `~/.config/shell/secrets.local` — never add keys to
+  the stowed file).
 - tmux plugins (tpm) are machine-local in `~/.config/tmux/plugins`;
   press `prefix + I` inside tmux to install them.
 
