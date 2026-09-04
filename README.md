@@ -36,9 +36,11 @@ curl -fsSL https://raw.githubusercontent.com/timfox456/dotfiles/main/bootstrap.s
 - `ghostty/` — auto-attaches tmux, Catppuccin Mocha theme.
 - `opencode/` — opencode Go/Zen config. Auth keys are per-machine in
   `~/.local/share/opencode/auth.json` (`opencode auth login`).
-- **zerostack** — tiny Rust agent for small instances (opencode is too heavy
-  for 1GB boxes). `install-deps.sh` installs it via the official script; its
-  stowed config is secret-free by design (key resolves from
+- **zerostack** — tiny Rust agent for small instances and older CPUs
+  (opencode is Bun-based: too heavy for 1GB boxes, and its non-AVX "baseline"
+  builds segfault on CPUs without AVX — check `/proc/cpuinfo` if opencode
+  crashes with a Bun panic). `install-deps.sh` installs it via the official
+  script; its stowed config is secret-free by design (key resolves from
   `OPENROUTER_API_KEY` in `~/.config/shell/secrets.local` — never add keys to
   the stowed file).
 - tmux plugins (tpm) are machine-local in `~/.config/tmux/plugins`;
