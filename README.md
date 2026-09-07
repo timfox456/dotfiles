@@ -39,8 +39,11 @@ curl -fsSL https://raw.githubusercontent.com/timfox456/dotfiles/main/bootstrap.s
 - **zerostack** — tiny Rust agent for small instances and older CPUs
   (opencode is Bun-based: too heavy for 1GB boxes, and its non-AVX "baseline"
   builds segfault on CPUs without AVX — check `/proc/cpuinfo` if opencode
-  crashes with a Bun panic). `install-deps.sh` installs it via the official
-  script; its stowed config is secret-free by design (key resolves from
+  crashes with a Bun panic). This includes VPSes whose provider uses the
+  default QEMU `qemu64` CPU model: `lscpu` shows no AVX even on modern
+  hosts, and only the provider can switch the VM to `host-model`.
+  `install-deps.sh` installs zerostack via the official script; its stowed
+  config is secret-free by design (key resolves from
   `OPENROUTER_API_KEY` in `~/.config/shell/secrets.local` — never add keys to
   the stowed file).
 - tmux plugins (tpm) are machine-local in `~/.config/tmux/plugins`;
