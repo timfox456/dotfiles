@@ -410,6 +410,28 @@ ensure_zerostack() {
 ensure_zerostack
 
 
+# --- pi (pi_agent_rust — Rust port of Mario Zechner's Pi Agent) --------------
+# Single-binary coding agent; complements zerostack on servers and works on
+# Macs. Auth: provider env keys (OPENROUTER_API_KEY etc. from secrets.local).
+# NOTE: the official installer may append PATH lines to shell rc files — our
+# stowed rc files already export ~/.local/bin, so its check should no-op.
+ensure_pi_agent() {
+  # The official installer is idempotent (state in ~/.local/state/pi-agent-rust)
+  # and handles the name collision with the TypeScript original itself: installs
+  # as `pi` on fresh machines, as `pi-rust` when a TS pi already exists. Always
+  # invoke it — it no-ops quickly when current.
+  log "ensuring pi (pi_agent_rust official installer)"
+  curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/install.sh" \
+    | bash -s -- --yes \
+    || warn "pi install failed — see https://github.com/Dicklesworthstone/pi_agent_rust#installation"
+  command -v pi >/dev/null 2>&1 && \
+    log "pi: $(pi --version 2>&1 | head -n1)"
+  command -v pi-rust >/dev/null 2>&1 && \
+    log "pi-rust (coexisting with a TS pi): $(pi-rust --version 2>&1 | head -n1)"
+  echo "note: pi reads provider keys from the environment (OPENROUTER_API_KEY etc. — see secrets.local)"
+}
+ensure_pi_agent
+
 # --- oh-my-zsh (macOS only — Linux servers run bash) -------------------------
 ensure_omz() {
   if [[ "$(uname -s)" != "Darwin" ]]; then

@@ -91,8 +91,8 @@ if ! shopt -oq posix; then
   fi
 fi
 
-# user-local binaries
-export PATH="$PATH:$HOME/bin"
+# user-local binaries (~/.local/bin also satisfies the pi installer's PATH check)
+export PATH="$PATH:$HOME/bin:$HOME/.local/bin"
 
 # opencode (guarded — only where the CLI self-installed)
 [ -d "$HOME/.opencode/bin" ] && export PATH="$HOME/.opencode/bin:$PATH"
