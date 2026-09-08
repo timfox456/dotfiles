@@ -67,6 +67,21 @@ chmod 600 ~/.config/shell/secrets.local
 Sourced last by both `.bashrc`/`.bash_aliases` (servers) and `.zshrc` (Macs).
 Never synced, never committed.
 
+**Migrating keys from an old rc backup** (machines that had keys in their
+pre-stow `.zshrc`/`.bashrc` — e.g. after `install.sh` backed them up as
+`.zshrc.bak`): review what's there, then append the key lines manually:
+
+```bash
+grep -hE "^(export )?[A-Z0-9_]+_(KEY|TOKEN)=" ~/.zshrc.bak ~/.bashrc.bak 2>/dev/null
+# looks right? append (run once — dedupe if repeated):
+grep -hE "^(export )?[A-Z0-9_]+_(KEY|TOKEN)=" ~/.zshrc.bak ~/.bashrc.bak 2>/dev/null >> ~/.config/shell/secrets.local
+sort -u ~/.config/shell/secrets.local -o ~/.config/shell/secrets.local
+chmod 600 ~/.config/shell/secrets.local
+```
+
+`install.sh` prints this same command as a hint whenever it detects old rc
+backups — it never moves keys automatically.
+
 ### 2. Git identity — `~/.config/git/gitconfig.local` (work machines)
 
 ```bash

@@ -141,5 +141,13 @@ else
   echo "note: tpm not found — run ./install-deps.sh, then prefix + I inside tmux"
 fi
 
+# Migration hint (informational only — never move keys automatically)
+if compgen -G "$HOME/.zshrc.bak*" >/dev/null || compgen -G "$HOME/.bashrc.bak*" >/dev/null; then
+  echo
+  echo "hint: old rc backups detected — migrate API keys into secrets.local manually (one-time):"
+  echo "  grep -hE '^(export )?[A-Z0-9_]+_(KEY|TOKEN)=' ~/.zshrc.bak ~/.bashrc.bak 2>/dev/null >> ~/.config/shell/secrets.local"
+  echo "  sort -u ~/.config/shell/secrets.local -o ~/.config/shell/secrets.local && chmod 600 ~/.config/shell/secrets.local"
+fi
+
 [[ "${1:-}" == "--server" ]] && \
   echo "note: server variant linked. remaining manual steps are in the README (secrets, git identity, ssh, gmail)." || true
