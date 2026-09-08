@@ -102,3 +102,9 @@ if [ -f ~/.bash_aliases ]; then
     # shellcheck source=/dev/null
     . ~/.bash_aliases
 fi
+
+# Per-machine shell tweaks (non-secret) — created manually if needed
+if [ -f "$HOME/.config/shell/bashrc.local" ]; then
+    # shellcheck source=/dev/null
+    . "$HOME/.config/shell/bashrc.local"
+fi

@@ -89,3 +89,11 @@ if [[ -f "$HOME/.config/shell/secrets.local" ]]; then
    # shellcheck shell=sh
    source "$HOME/.config/shell/secrets.local"
 fi
+
+# === Per-machine shell tweaks ===============================================
+# Non-secret customizations that should NOT be synced (e.g. an rbenv init
+# for bash-flavored use on one machine). Create the file if you need it.
+if [[ -f "$HOME/.config/shell/zshrc.local" ]]; then
+   # shellcheck source=/dev/null
+   source "$HOME/.config/shell/zshrc.local"
+fi

@@ -11,3 +11,5 @@ Brewfile\.docker
 terminfo
 gitconfig\.local$
 automatic_backups
+zshrc\.local$
+bashrc\.local$
