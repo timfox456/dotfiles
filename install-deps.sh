@@ -12,6 +12,8 @@
 #   ./install-deps.sh --user         # install to ~/.local instead of /usr/local (no root needed)
 #
 #   ./install-deps.sh --docker       # also install container tier (macOS: colima)
+#   ./install-deps.sh --low          # low tier: skip TypeScript pi (node >= 22.19)
+#   ./install-deps.sh --high         # force high tier (default on desktops and >= 2GB servers)
 #
 # Pinned versions (override via env):
 #   NVIM_VERSION=0.12.4 ./install-deps.sh
@@ -36,26 +38,41 @@ MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs 
 #   python3/pip/venv -> mason (ruff, black, isort, mypy, pylint, debugpy)
 #   unzip -> some mason packages
 #   mosh -> roaming/persistent SSH sessions (pairs with tmux; needs UDP 60000-61000)
+#   pass -> unix password manager (pulls gnupg; store is per-machine, never synced)
 #   gh/glab -> forge CLIs
 #   ruby -> mason: rubocop (gem install; noble ships 3.2 + gem)
 #   fd-find -> telescope/nvim find_files (Ubuntu names the binary fdfind —
 #              symlinked to fd below); tree -> directory listing
-TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop gh glab aerc fd-find tree python3 python3-pip python3-venv ruby)
+TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop gh glab aerc fd-find tree pass python3 python3-pip python3-venv ruby)
 
 MODE="install"
 PREFIX="/usr/local"
 FORCE=0
 DOCKER=0
+TIER=""
 for arg in "$@"; do
   case "$arg" in
     --check) MODE="check" ;;
     --force) FORCE=1 ;;
     --user)  PREFIX="${HOME}/.local" ;;
     --docker) DOCKER=1 ;;
+    --low)   TIER="low" ;;
+    --high)  TIER="high" ;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $arg (see --help)" >&2; exit 1 ;;
   esac
 done
+
+# Tier (mirrors install.sh): low = zerostack + pi-rust only. --low/--high
+# force it; otherwise autodetected on Linux servers from total RAM (< 2GB,
+# same threshold as nvim's lowmem gate). macOS is always high.
+if [[ -z "$TIER" ]]; then
+  TIER="high"
+  if [[ "$(uname -s)" == "Linux" ]]; then
+    mem_kb="$(awk '/^MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || true)"
+    [[ -n "$mem_kb" && "$mem_kb" -lt 2097152 ]] && TIER="low"
+  fi
+fi
 
 SUDO=""
 if [[ $EUID -ne 0 && $PREFIX == "/usr/local" ]]; then
@@ -375,6 +392,41 @@ ensure_npm_globals() {
 }
 ensure_npm_globals
 
+# --- pi (TypeScript — @earendil-works/pi-coding-agent) -----------------------
+# The full-featured coding agent from the pi-mono repo (the Rust port is
+# pi_agent_rust below). High tier only: needs node >= 22.19. Its `pi` binary
+# is the shell default; settings come from install.sh (pi package ->
+# ~/.config/pi/agent via PI_CODING_AGENT_DIR, set by the shell wrappers).
+PI_MIN_NODE_VERSION="${PI_MIN_NODE_VERSION:-22.19.0}"
+ensure_pi_ts() {
+  [[ "$TIER" == "low" ]] && { log "tier low — skipping TypeScript pi (uses pi-rust instead)"; return 0; }
+  (
+    unset PREFIX
+    if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+      # shellcheck source=/dev/null
+      . "$HOME/.nvm/nvm.sh"
+    fi
+    command -v npm >/dev/null 2>&1 || { warn "npm not found — skipping TypeScript pi install"; return 0; }
+    # TS pi requires node >= 22.19: refresh the nvm LTS when the active node
+    # is older (idempotent — `nvm install --lts` resolves to the newest LTS).
+    local node_cur node_min
+    node_cur="$(node --version 2>/dev/null | sed 's/^v//')"
+    node_min="${PI_MIN_NODE_VERSION#v}"
+    if [[ -z "$node_cur" ]] || ! ver_ge "$node_cur" "$node_min"; then
+      log "node ${node_cur:-missing}: below TypeScript pi minimum ${node_min} — installing latest LTS"
+      nvm install --lts && nvm alias default 'lts/*' \
+        || { warn "node LTS install failed — skipping TypeScript pi"; return 0; }
+      hash -r
+    fi
+    log "ensuring @earendil-works/pi-coding-agent (npm global)"
+    npm install -g -q @earendil-works/pi-coding-agent \
+      || warn "TS pi install failed — run 'npm i -g @earendil-works/pi-coding-agent' manually"
+    command -v pi >/dev/null 2>&1 && \
+      log "pi (TypeScript): $(pi --version 2>&1 | head -n1)"
+  ) || warn "TypeScript pi stage failed"
+}
+ensure_pi_ts
+
 # --- ghostty terminfo (so TERM=xterm-ghostty works on servers) ---------------
 # Vendored terminfo source; installs user-local to ~/.terminfo (no sudo).
 ensure_ghostty_terminfo() {
@@ -424,11 +476,22 @@ ensure_pi_agent() {
   curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/install.sh" \
     | bash -s -- --yes \
     || warn "pi install failed — see https://github.com/Dicklesworthstone/pi_agent_rust#installation"
-  command -v pi >/dev/null 2>&1 && \
-    log "pi: $(pi --version 2>&1 | head -n1)"
+  # Name normalization: the rust build must always be `pi-rust` — `pi` is
+  # reserved for the TypeScript pi (the shell `pi` wrapper only falls back to
+  # pi-rust where TS pi is absent). The rust installer names its binary `pi`
+  # on fresh machines (when no TS pi exists yet), so fix a stale `pi` here.
+  # The rust --version format includes "(<sha> <iso-timestamp>)"; the TS
+  # build's does not.
+  if [[ ! -x "$HOME/.local/bin/pi-rust" && -x "$HOME/.local/bin/pi" ]] && \
+     "$HOME/.local/bin/pi" --version 2>/dev/null | grep -qE '\([0-9a-f]{6,} 20[0-9]{2}-[0-9]{2}-'; then
+    mv "$HOME/.local/bin/pi" "$HOME/.local/bin/pi-rust"
+    log "renamed rust pi binary -> ~/.local/bin/pi-rust"
+  fi
   command -v pi-rust >/dev/null 2>&1 && \
-    log "pi-rust (coexisting with a TS pi): $(pi-rust --version 2>&1 | head -n1)"
-  echo "note: pi reads provider keys from the environment (OPENROUTER_API_KEY etc. — see secrets.local)"
+    log "pi-rust: $(pi-rust --version 2>&1 | head -n1)"
+  command -v pi >/dev/null 2>&1 && \
+    log "pi (TypeScript): $(pi --version 2>&1 | head -n1)"
+  echo "note: both pi builds read provider keys from the environment (OPENROUTER_API_KEY etc. — see secrets.local)"
 }
 ensure_pi_agent
 

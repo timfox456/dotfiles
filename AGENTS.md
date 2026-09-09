@@ -5,7 +5,7 @@ Conventions for AI agents (and humans) working in this dotfiles repo.
 ## What this repo is
 
 Personal dotfiles for Tim Fox: neovim, tmux, ghostty, opencode, zerostack,
-git, shell — managed with **GNU Stow**, supporting **macOS**, **Linux
+pi, git, shell — managed with **GNU Stow**, supporting **macOS**, **Linux
 desktops (i3)** and **Ubuntu servers**.
 
 ## Structure rules (do not break these)
@@ -14,9 +14,19 @@ desktops (i3)** and **Ubuntu servers**.
   with `stow -t ~ pkg`. Never create package files at the package root
   (stow would link them to `$HOME` directly — this bug already happened).
 - `install.sh` is the only thing that runs stow. Desktop = default,
-  `--server` = headless. `i3` stows only on Linux desktops.
+  `--server` = headless. `i3` stows only on Linux desktops. Tiers:
+  `--low`/`--high` (or < 2GB RAM autodetect on Linux servers) gate
+  `opencode/` and `pi/` — the low tier stows only `pi-rust/`.
 - `tmux/` and `tmux-server/` both want `~/.config/tmux/tmux.conf` — only one
   may be stowed. Shared settings live in `tmux-common/`.
+- `pi/` (TypeScript pi) and `pi-rust/` (pi_agent_rust) both read
+  `PI_CODING_AGENT_DIR` and their binaries both want to be called `pi`.
+  The rust binary is ALWAYS `pi-rust` (`install-deps.sh` normalizes it);
+  `pi` is the TypeScript build, falling back to `pi-rust` on low-tier
+  servers via the shell wrappers in `.zshrc`/`.bashrc`. Beware stow
+  tree-folding: stowing `pi` while `~/.config/pi` is an empty real dir folds
+  the whole dir into the repo, funneling machine state (auth.json, sessions)
+  into the working tree — keep agent dirs real dirs with file-level links.
 - Scripts (`install.sh`, `install-deps.sh`, `bin/`) must pass
   `bash -n` and `shellcheck`; nvim lua must pass `luac -p`. CI (`.github/
   workflows/ci.yml`) enforces this on ubuntu + macOS runners with a full

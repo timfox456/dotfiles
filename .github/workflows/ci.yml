@@ -52,6 +52,8 @@ jobs:
           test -f "$HOME/.config/zerostack/config.toml"
           test -L "$HOME/.config/ghostty/config"
           test -L "$HOME/.config/opencode/opencode.json"
+          test -L "$HOME/.config/pi/agent/settings.json"
+          test -L "$HOME/.config/pi-rust/agent/settings.json"
           test -L "$HOME/.config/git/ignore"
           test -L "$HOME/.gitconfig"
 
@@ -66,6 +68,15 @@ jobs:
         run: |
           nvim --headless "+Lazy! sync" +qa
           nvim --headless +qa
+
+      - name: Stow low-tier server variant (downgrade)
+        run: ./install.sh --server --low
+
+      - name: Verify low-tier links
+        run: |
+          test -L "$HOME/.config/pi-rust/agent/settings.json"
+          test ! -L "$HOME/.config/opencode/opencode.json"
+          test ! -e "$HOME/.config/pi/agent/settings.json"
 
   macos:
     runs-on: macos-latest

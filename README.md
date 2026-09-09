@@ -14,6 +14,7 @@ sudo apt install stow    # Ubuntu
                          # = server (prefix C-a); everything else = desktop
 ./install.sh --server    # force server variant
 ./install.sh --desktop   # force desktop variant
+./install.sh --low       # force low tier (below); --high forces the default
 ```
 
 Or bootstrap a fresh machine in one shot:
@@ -35,7 +36,22 @@ curl -fsSL https://raw.githubusercontent.com/timfox456/dotfiles/main/bootstrap.s
   `bin/.local/bin/`.
 - `ghostty/` — auto-attaches tmux, Catppuccin Mocha theme.
 - `opencode/` — opencode Go/Zen config. Auth keys are per-machine in
-  `~/.local/share/opencode/auth.json` (`opencode auth login`).
+  `~/.local/share/opencode/auth.json` (`opencode auth login`). Linked only
+  on the **high tier**.
+- **pi agents** — two builds share the `pi` name, kept apart by shell
+  wrappers (in `.zshrc`/`.bashrc`) that give each its own agent dir:
+  - `pi` → the TypeScript pi (`@earendil-works/pi-coding-agent`, config
+    stowed from `pi/` → `~/.config/pi/agent`). The default everywhere it's
+    installed; on low-tier servers it falls back to `pi-rust`.
+  - `pir` → pi_agent_rust (config stowed from `pi-rust/` →
+    `~/.config/pi-rust/agent`; sessions in `~/.local/state/pi-rust/sessions`).
+  The rust binary must always be named `pi-rust` — `install-deps.sh`
+  normalizes the rust installer's `pi` name. `auth.json` for both builds is
+  machine-local and never enters the repo.
+- **Tiers** — `--low` / `--high` force it; otherwise Linux servers
+  autodetect: < 2GB RAM = low (`zerostack` + `pi-rust` only — no opencode,
+  no TypeScript pi, which needs node >= 22.19). Desktops and big servers
+  run everything.
 - **zerostack** — tiny Rust agent for small instances and older CPUs
   (opencode is Bun-based: too heavy for 1GB boxes, and its non-AVX "baseline"
   builds segfault on CPUs without AVX — check `/proc/cpuinfo` if opencode
@@ -159,10 +175,30 @@ your username, not ask for a password). On work machines the employer's key
 Covers: neovim (tarball), tmux (source build), stow, tree-sitter CLI,
 typescript@5 + typescript-language-server (npm global), the base
 toolchain (`git curl wget mosh jq htop gh glab aerc lazygit fd tree unzip build-essential ruby
-ripgrep fzf python3 python3-pip python3-venv` — macOS gets the same via
+ripgrep fzf pass python3 python3-pip python3-venv` — macOS gets the same via
 `Brewfile`), forge CLIs (`gh glab`), cloud CLIs (`aws az gcloud` — vendor
 installers on Linux, Brewfile on macOS), plus tpm with plugins installed
 non-interactively.
+
+### pass (unix password manager)
+
+Installed by `install-deps.sh` (Linux: apt `pass`, macOS: Brewfile) on every
+machine. Secrets live in the per-machine GPG-encrypted store
+(`~/.password-store`, `PASSWORD_STORE_DIR` default) — never synced, never
+committed. One-time setup per machine:
+
+```bash
+# 1. pick/create your GPG key (existing one is fine)
+gpg --list-secret-keys --keyid-format long
+# 2. initialize the store against it
+pass init <GPG-KEY-ID>
+# 3. (optional) version the store in a PRIVATE git repo
+pass git init
+```
+
+Usage: `pass insert site/name`, `pass show site/name`, `pass generate
+site/name 24` (generates + copies to clipboard). Optional extras if wanted:
+`apt install pass-otp` / `brew install pass-otp` (TOTP), `zbar` (QR import).
 
 ### Runtime managers: nvm now, fnm/mise as the documented future option
 

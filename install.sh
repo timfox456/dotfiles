@@ -6,6 +6,9 @@
 #                            # headless Linux (no DISPLAY) = server
 #   ./install.sh --server    # force server variant (tmux prefix C-a)
 #   ./install.sh --desktop   # force desktop variant (tmux prefix C-b, i3 on Linux)
+#   ./install.sh --low       # force low tier: no opencode, no TS pi
+#                            # (zerostack + pi-rust only; `pi` falls back to pi-rust)
+#   ./install.sh --high      # force high tier (default on desktops and >= 2GB servers)
 #   ./install.sh --help
 #
 # Packages mirror the $HOME layout (pkg/.config/...). Stow conflicts are
@@ -18,11 +21,11 @@ cd "$(dirname "$0")"
 REPO_DIR="$PWD"
 
 usage() {
-  sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 }
 
-mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" "$HOME/.config/opencode" \
+mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" \
          "$HOME/.config/zerostack" "$HOME/.config/git" "$HOME/.config/shell" \
          "$HOME/.config/aerc" "$HOME/.local/bin" "$HOME/.local/share/aerc" \
          "$HOME/.local/state/nvim"
@@ -91,10 +94,13 @@ resolve_stow_conflicts() {
 # --server / --desktop force it. Otherwise: macOS is always a desktop, and
 # Linux autodetects headless via DISPLAY (servers have none).
 VARIANT=""
+TIER=""
 for arg in "$@"; do
   case "$arg" in
     --server)  VARIANT="server" ;;
     --desktop) VARIANT="desktop" ;;
+    --low)     TIER="low" ;;
+    --high)    TIER="high" ;;
     -h|--help) usage ;;
     *) echo "unknown option: $arg (see --help)" >&2; exit 1 ;;
   esac
@@ -109,7 +115,28 @@ if [[ -z "$VARIANT" ]]; then
   fi
 fi
 
-STOW_PKGS=(tmux-common ghostty opencode zerostack git shell bin aerc nvim)
+# --- tier selection -----------------------------------------------------------
+# Low tier = zerostack + pi-rust only (1GB boxes: opencode is Bun-based/too
+# heavy and the TypeScript pi needs node >= 22). Forced via --low/--high;
+# otherwise autodetected on Linux servers from total RAM (< 2GB = low), same
+# threshold as nvim's lowmem gate. Desktops and macOS are always high.
+if [[ -z "$TIER" ]]; then
+  TIER="high"
+  if [[ "$VARIANT" == "server" && "$(uname -s)" == "Linux" ]]; then
+    mem_kb="$(awk '/^MemTotal/ {print $2}' /proc/meminfo 2>/dev/null || true)"
+    [[ -n "$mem_kb" && "$mem_kb" -lt 2097152 ]] && TIER="low"
+  fi
+fi
+if [[ "$TIER" == "low" ]]; then
+  echo "tier: low (zerostack + pi-rust only)"
+else
+  echo "tier: high (zerostack + pi-rust + pi (TypeScript) + opencode)"
+fi
+
+STOW_PKGS=(tmux-common ghostty zerostack git shell bin aerc nvim pi-rust)
+if [[ "$TIER" == "high" ]]; then
+  STOW_PKGS+=(opencode pi)
+fi
 if [[ "$VARIANT" == "server" ]]; then
   STOW_PKGS+=(tmux-server)
 else
@@ -117,9 +144,28 @@ else
   [[ "$(uname -s)" == "Linux" ]] && STOW_PKGS+=(i3)
 fi
 
+# Tier downgrade: stow --restow never touches unlisted packages, so dropping
+# a machine to the low tier must explicitly unstow the high-tier ones.
+# (pi needs two checks: a file-level settings link or a tree-folded
+# ~/.config/pi symlink — see the stow-folding footgun in AGENTS.md.)
+if [[ "$TIER" == "low" ]]; then
+  [[ -L "$HOME/.config/opencode/opencode.json" ]] && \
+    { stow -D -t "$HOME" opencode && echo "unstowed: opencode (low tier)"; } || true
+  if [[ -L "$HOME/.config/pi/agent/settings.json" || -L "$HOME/.config/pi" ]]; then
+    stow -D -t "$HOME" pi && echo "unstowed: pi (low tier)"
+  fi
+fi
+
 resolve_stow_conflicts "${STOW_PKGS[@]}"
 stow --restow -t "$HOME" "${STOW_PKGS[@]}"
-echo "Linked (${VARIANT}): ${STOW_PKGS[*]}"
+echo "Linked (${VARIANT}, ${TIER}): ${STOW_PKGS[*]}"
+
+# Informational: an existing opencode install on a downgraded/low-tier machine
+# is never deleted automatically — remove it manually if desired.
+if [[ "$TIER" == "low" && ( -d "$HOME/.local/share/opencode" || -d "$HOME/.opencode" ) ]]; then
+  echo "note: opencode is not linked on the low tier. To remove the old install:"
+  echo "  rm -rf ~/.opencode ~/.local/share/opencode ~/.cache/opencode ~/.config/opencode"
+fi
 
 # --- post-stow: lazy lockfile convergence ------------------------------------
 # lazy writes its lockfile to the state dir (machine-local); the repo copy

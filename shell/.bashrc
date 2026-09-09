@@ -97,6 +97,28 @@ export PATH="$PATH:$HOME/bin:$HOME/.local/bin"
 # opencode (guarded — only where the CLI self-installed)
 [ -d "$HOME/.opencode/bin" ] && export PATH="$HOME/.opencode/bin:$PATH"
 
+# === pi agents (two builds share the `pi` name) ==============================
+#   pir — pi_agent_rust, always.
+#   pi  — TypeScript pi (@earendil-works/pi-coding-agent), the default; on
+#         low-tier servers (pi-rust only) it falls back to pi-rust.
+# Both honor PI_CODING_AGENT_DIR, so each build gets its own agent dir;
+# settings.json for each is stowed from the repo (pi / pi-rust packages).
+# auth.json, sessions, packages and tool bins stay per-machine — never in git.
+pir() {
+  PI_CODING_AGENT_DIR="$HOME/.config/pi-rust/agent" \
+    PI_SESSIONS_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi-rust/sessions" \
+    PI_EXTENSION_INDEX_PATH="${XDG_CACHE_HOME:-$HOME/.cache}/pi-rust/extension-index" \
+    command pi-rust "$@"
+}
+pi() {
+  # type -P (not command -v): must not match the pi() function itself
+  if type -P pi >/dev/null 2>&1; then
+    PI_CODING_AGENT_DIR="$HOME/.config/pi/agent" command pi "$@"
+  else
+    pir "$@"
+  fi
+}
+
 # synced aliases, secrets and version managers
 if [ -f ~/.bash_aliases ]; then
     # shellcheck source=/dev/null

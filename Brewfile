@@ -11,6 +11,7 @@ brew "mosh"
 brew "fd"
 brew "tree"
 brew "lazygit"
+brew "pass"
 
 # Editors / agents
 brew "neovim"

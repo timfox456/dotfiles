@@ -68,12 +68,37 @@ if [[ -d "$HOME/.bun" ]]; then
   [[ -s "$BUN_INSTALL/_bun" ]] && source "$BUN_INSTALL/_bun"
 fi
 
-# Antigravity (per-machine app)
-[[ -d "$HOME/.antigravity/antigravity/bin" ]] && \
-  export PATH="$HOME/.antigravity/antigravity/bin:$PATH"
-
 # opencode
 [[ -d "$HOME/.opencode/bin" ]] && export PATH="$HOME/.opencode/bin:$PATH"
+
+# pi coding agent — settings.json is stowed from the repo (pi package);
+# mutable state (auth.json, packages, tool bins) stays in the agent dir and
+# sessions/index stay in the state/cache dirs — none of it lands in git.
+export PI_CODING_AGENT_DIR="$HOME/.config/pi/agent"
+export PI_SESSIONS_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi/sessions"
+export PI_EXTENSION_INDEX_PATH="${XDG_CACHE_HOME:-$HOME/.cache}/pi/extension-index"
+
+# === pi agents (two builds share the `pi` name) ==============================
+#   pir — pi_agent_rust, always.
+#   pi  — TypeScript pi (@earendil-works/pi-coding-agent), the default; on
+#         low-tier servers (pi-rust only) it falls back to pi-rust.
+# Both honor PI_CODING_AGENT_DIR, so each build gets its own agent dir;
+# settings.json for each is stowed from the repo (pi / pi-rust packages).
+# auth.json, sessions, packages and tool bins stay per-machine — never in git.
+pir() {
+  PI_CODING_AGENT_DIR="$HOME/.config/pi-rust/agent" \
+    PI_SESSIONS_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi-rust/sessions" \
+    PI_EXTENSION_INDEX_PATH="${XDG_CACHE_HOME:-$HOME/.cache}/pi-rust/extension-index" \
+    command pi-rust "$@"
+}
+pi() {
+  # whence -p (not command -v): must not match the pi() function itself
+  if whence -p pi >/dev/null 2>&1; then
+    PI_CODING_AGENT_DIR="$HOME/.config/pi/agent" command pi "$@"
+  else
+    pir "$@"
+  fi
+}
 
 # OpenJDK 17 via Homebrew (macOS)
 if [[ "$(uname -s)" == Darwin && -d "/opt/homebrew/opt/openjdk@17" ]]; then
