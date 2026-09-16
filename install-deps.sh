@@ -177,15 +177,105 @@ TMUX_CUR="$(current_tmux_version || true)"
 # macOS: declarative brew tooling (Brewfile) BEFORE version checks, so
 # freshly installed nvim/tmux satisfy the minimums and the Linux paths
 # (tarball/source-build) never trigger on a Mac.
+BREW_SOURCE_FILE="" BREW_SOURCE_LOG=""
 ensure_brew_bundle() {
   if [[ "$(uname -s)" != "Darwin" ]] || ! command -v brew >/dev/null 2>&1; then
     return 0
   fi
-  log "ensuring macOS tooling via Brewfile"
-  # NOTE: no --no-lock — older brew versions reject it. The generated
-  # Brewfile.lock.json is gitignored instead.
-  brew bundle --file=Brewfile \
-    || warn "brew bundle failed — install missing tools manually (see Brewfile)"
+  if [[ "$(uname -m)" == "arm64" ]]; then
+    log "ensuring macOS tooling via Brewfile"
+    # NOTE: no --no-lock — older brew versions reject it. The generated
+    # Brewfile.lock.json is gitignored instead.
+    brew bundle --file=Brewfile \
+      || warn "brew bundle failed — install missing tools manually (see Brewfile)"
+    return 0
+  fi
+  ensure_brew_bundle_intel
+}
+
+# Intel Macs: Homebrew only bottles the three newest macOS releases and
+# publishes no x86 bottles for many formulas at all, so a plain `brew
+# bundle` can block this script behind from-source compiles for hours or
+# days. Split it: taps + casks + formulas WITH a bottle install
+# synchronously; the from-source remainder is written to
+# $BREW_SOURCE_FILE and spawned as a detached job at the very end of the
+# run (start_brew_source_build) — install-deps.sh never waits on a compiler.
+ensure_brew_bundle_intel() {
+  local cache fast slow_count
+  cache="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles"
+  mkdir -p "$cache"
+  BREW_SOURCE_LOG="$cache/brew-source-build.log"
+  fast="$(mktemp)"
+  log "Intel Mac: splitting Brewfile (bottled + casks now, from-source later)"
+  if command -v python3 >/dev/null 2>&1; then
+    slow_count="$(python3 - "$fast" "$BREW_SOURCE_FILE" <<'PY'
+import json, re, subprocess, sys
+fast_path, slow_path = sys.argv[1], sys.argv[2]
+lines = open("Brewfile").read().splitlines()
+specs, kept = [], []
+for line in lines:
+    m = re.match(r'^brew\s+"([^"]+)"', line)
+    if m:
+        specs.append(m.group(1))
+    kept.append((line, bool(m)))
+
+macos_tag = None
+try:
+    ver = subprocess.run(["sw_vers", "-productVersion"], capture_output=True,
+                         text=True).stdout.strip()
+    macos_tag = {15: "sequoia", 14: "sonoma", 13: "ventura",
+                 12: "monterey", 11: "big_sur"}.get(int(ver.split(".")[1]))
+except Exception:
+    pass
+
+bottled = set()
+if specs:
+    try:
+        out = subprocess.run(["brew", "info", "--json=v2", "--formula", *specs],
+                             capture_output=True, text=True, timeout=180).stdout
+        data = json.loads(out or "{}")
+        for f in data.get("formulae", []):
+            name = f.get("full_name") or f.get("name")
+            files = (((f.get("bottle") or {}).get("stable") or {}).get("files")) or {}
+            ok = bool(files) if macos_tag is None else macos_tag in files
+            if ok:
+                bottled.add(name)
+    except Exception:
+        bottled = set(specs)  # fail open: old behavior, nothing deferred
+
+with open(fast_path, "w") as fh:
+    for line, is_brew in kept:
+        if is_brew and re.match(r'^brew\s+"([^"]+)"', line).group(1) not in bottled:
+            continue
+        fh.write(line + "\n")
+slow = 0
+with open(slow_path, "w") as fh:
+    for line, is_brew in kept:
+        m = re.match(r'^brew\s+"([^"]+)"', line)
+        if is_brew and m.group(1) not in bottled:
+            fh.write(line + "\n")
+            slow += 1
+        elif not is_brew and re.match(r'^tap\s', line):
+            fh.write(line + "\n")
+print(slow)
+PY
+)" || slow_count=""
+  else
+    slow_count=""
+  fi
+  if [[ -n "${slow_count:-}" && "$slow_count" -gt 0 ]]; then
+    log "Intel Mac: casks + bottled formulas first — from-source formulas deferred to a background job"
+    brew bundle --file="$fast" \
+      || warn "brew bundle (fast pass) failed — install missing tools manually (see Brewfile)"
+    echo "note: $slow_count formula(s) have no bottle for this macOS — they will build from"
+    echo "      source in the background after this script finishes (log: $BREW_SOURCE_LOG)"
+  else
+    log "ensuring macOS tooling via Brewfile (no from-source formulas detected)"
+    brew bundle --file="$fast" \
+      || warn "brew bundle failed — install missing tools manually (see Brewfile)"
+    BREW_SOURCE_FILE=""
+  fi
+  rm -f "$fast"
 }
 ensure_brew_bundle
 
@@ -717,6 +807,22 @@ report_tool rg
 report_tool fzf
 report_tool stow
 report_tool git
+
+# --- Intel Mac only: from-source brew builds (MUST stay last) ----------------
+# Spawned detached + niced so the script can exit; the build survives the
+# exit (nohup) and logs to $BREW_SOURCE_LOG. Reruns skip what's installed.
+start_brew_source_build() {
+  [[ -n "$BREW_SOURCE_FILE" && -s "$BREW_SOURCE_FILE" ]] || return 0
+  if pgrep -f "brew bundle --file=$BREW_SOURCE_FILE" >/dev/null 2>&1; then
+    log "from-source brew build already running in the background (log: $BREW_SOURCE_LOG)"
+    return 0
+  fi
+  : > "$BREW_SOURCE_LOG"
+  nohup nice -n 10 brew bundle --file="$BREW_SOURCE_FILE" \
+    >>"$BREW_SOURCE_LOG" 2>&1 </dev/null &
+  log "from-source brew build running in the background (pid $!) — progress: tail -f $BREW_SOURCE_LOG"
+}
+start_brew_source_build
 
 if [[ "$PREFIX" == "${HOME}/.local" ]]; then
   warn "make sure ${HOME}/.local/bin is on your PATH"

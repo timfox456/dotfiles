@@ -172,6 +172,13 @@ your username, not ask for a password). On work machines the employer's key
 ./install-deps.sh            # upgrade whatever is below minimum
 ```
 
+On Intel Macs (no bottles — everything compiles from source), `brew bundle`
+is split: taps, casks and bottled formulas install synchronously, while
+from-source-only formulas are deferred to a `nohup`'d, niced background job
+that starts after the script finishes — `tail -f
+~/.cache/dotfiles/brew-source-build.log` to watch it; reruns skip whatever
+is already installed.
+
 Covers: neovim (tarball), tmux (source build), stow, tree-sitter CLI,
 typescript@5 + typescript-language-server (npm global), the base
 toolchain (`git curl wget mosh jq htop gh glab aerc lazygit fd tree unzip build-essential ruby
