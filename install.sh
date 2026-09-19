@@ -48,10 +48,15 @@ resolve_stow_conflicts() {
     # stow reports each conflict TWICE (CONFLICT line + target line) with
     # version-dependent formats — extract the path, then dedup (sort -u):
     #   variant links (2.3.x/2.4.x): "... stowed to a different package: P => Q"
-    #   2.4.x real files: "CONFLICT when stowing pkg: ... over existing target P since ..."
+    #   2.4.x real files: "CONFLICT ...: cannot stow PKGFILE over existing
+    #                     target P since neither a link nor a directory
+    #                     and --adopt not specified"
     #   2.3.x real files: "  * existing target is neither a link nor a directory: P"
     # Case order matters: the greedy-colon fallback must stay LAST and narrowed
     # to "neither", or it matches the 2.4 CONFLICT line and produces garbage.
+    # The 2.4 "over existing target" case must capture ONLY the path token —
+    # the line continues with " since neither ..." prose (this bug bit on
+    # stow 2.4.1: mv got handed the whole message as a backup path).
     while IFS= read -r target; do
       [[ -z "$target" ]] && continue
       targets+=("$target")
@@ -59,7 +64,7 @@ resolve_stow_conflicts() {
       | grep -E "existing target" \
       | sed -E '
           s/.*stowed to a different package:[[:space:]]*([^[:space:]]*).*/\1/; t
-          s/.*over existing target[[:space:]]+//; t
+          s/.*over existing target[[:space:]]+([^[:space:]]+).*/\1/; t
           s/.*existing target is neither a link nor a directory:[[:space:]]*//
         ' | sort -u || true)
     ((${#targets[@]})) || return 0

@@ -174,6 +174,21 @@ NEED_NVIM=0 NEED_TMUX=0
 NVIM_CUR="$(current_nvim_version || true)"
 TMUX_CUR="$(current_tmux_version || true)"
 
+# --- Homebrew bootstrap (macOS, only when brew is missing) -------------------
+# Homebrew's official installer also handles the Xcode Command Line Tools
+# (which provide git); afterwards the Brewfile stage installs git + the rest.
+ensure_homebrew() {
+  [[ "$(uname -s)" == "Darwin" ]] || return 0
+  command -v brew >/dev/null 2>&1 && return 0
+  log "Homebrew not found — installing it (also installs the Xcode Command Line Tools; this can take a while)"
+  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
+    || { warn "Homebrew install failed — install it from https://brew.sh and rerun"; return 0; }
+  # Make brew visible to the rest of this run regardless of arch/path.
+  eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
+  command -v brew >/dev/null 2>&1 && log "Homebrew: $(brew --version | head -n1)"
+}
+ensure_homebrew
+
 # macOS: declarative brew tooling (Brewfile) BEFORE version checks, so
 # freshly installed nvim/tmux satisfy the minimums and the Linux paths
 # (tarball/source-build) never trigger on a Mac.

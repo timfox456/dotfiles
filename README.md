@@ -23,6 +23,12 @@ Or bootstrap a fresh machine in one shot:
 curl -fsSL https://raw.githubusercontent.com/timfox456/dotfiles/main/bootstrap.sh | bash -s -- --server
 ```
 
+On a Mac that has no `git` yet (no Xcode CLT either), `bootstrap.sh`
+bootstraps **Homebrew first** — its installer also installs the Xcode
+Command Line Tools, which provide git — before cloning. `install-deps.sh`
+does the same when run on any Mac where brew is missing, and the Brewfile
+stage then installs `git` and everything else.
+
 - `nvim/` — plugins pinned via the lockfile: `install.sh` converges each
   machine's state lockfile to the repo copy; deliberate plugin updates are
   synced back with `lazy-lock-sync` (then commit + push). The recurring

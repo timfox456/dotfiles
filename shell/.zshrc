@@ -7,6 +7,13 @@
 typeset -U path PATH
 export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 
+# Homebrew — eval shellenv when installed (Apple Silicon first, Intel fallback)
+if [[ -x /opt/homebrew/bin/brew ]]; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [[ "$(uname -m)" == "x86_64" && -x /usr/local/bin/brew ]]; then
+  eval "$(/usr/local/bin/brew shellenv)"
+fi
+
 # vi mode + search binds
 bindkey -v
 bindkey '^R' history-incremental-search-backward
