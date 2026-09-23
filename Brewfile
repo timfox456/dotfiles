@@ -37,5 +37,10 @@ brew "shellcheck"
 brew "actionlint"
 brew "lua"
 
+# System monitoring / info
+brew "btop"
+brew "fastfetch"
+brew "macmon"
+
 # Apps
 cask "ghostty"

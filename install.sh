@@ -138,7 +138,7 @@ else
   echo "tier: high (zerostack + pi-rust + pi (TypeScript) + opencode)"
 fi
 
-STOW_PKGS=(tmux-common ghostty zerostack git shell bin aerc nvim pi-rust)
+STOW_PKGS=(tmux-common ghostty zerostack git shell bin aerc nvim pi-rust btop fastfetch)
 if [[ "$TIER" == "high" ]]; then
   STOW_PKGS+=(opencode pi)
 fi
