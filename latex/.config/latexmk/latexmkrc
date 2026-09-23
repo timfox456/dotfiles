@@ -1,0 +1,14 @@
+# latexmk user config — read automatically from this XDG path
+# (supported natively by latexmk >= 4.52b). Per-project overrides go in a
+# local .latexmkrc next to the .tex file. Docs: perldoc latexmk.
+
+# pdflatex by default; override per project with latexmk -xelatex / -lualatex
+# or a local .latexmkrc setting $pdf_mode = 5 / 4.
+$pdf_mode = 1;
+
+# Run bibtex/biber as needed and clean the intermediate files with -c.
+$bibtex_use = 2;
+
+# Extra artifacts to remove with -c (synctex inverse-search files, beamer,
+# xelatex's xdv, tectonic-free usvt).
+$clean_ext = 'synctex.gz synctex.gz(busy) nav snm vrb xdv usvt lox';

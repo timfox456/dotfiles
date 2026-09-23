@@ -20,12 +20,13 @@ jobs:
         run: |
           bash -n install.sh
           bash -n install-deps.sh
+          bash -n install-tex.sh
           bash -n bin/.local/bin/tmux-sessionizer
           bash -n shell/.bash_aliases
           bash -n shell/.bashrc
 
       - name: shellcheck
-        run: shellcheck install.sh install-deps.sh bin/.local/bin/tmux-sessionizer shell/.bash_aliases shell/.bashrc
+        run: shellcheck install.sh install-deps.sh install-tex.sh bin/.local/bin/tmux-sessionizer shell/.bash_aliases shell/.bashrc
 
       - name: lua syntax (luac)
         run: find nvim/.config/nvim/lua -name '*.lua' -print0 | xargs -0 -n1 luac5.4 -p
@@ -56,6 +57,8 @@ jobs:
           test -L "$HOME/.config/pi-rust/agent/settings.json"
           test -L "$HOME/.config/git/ignore"
           test -L "$HOME/.gitconfig"
+          test -L "$HOME/.config/latexmk/latexmkrc"
+          test -f "$HOME/texmf/tex/latex/tim/tim.sty"
 
       - name: tmux parse test (server variant)
         run: |

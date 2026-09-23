@@ -12,6 +12,8 @@ brew "fd"
 brew "tree"
 brew "lazygit"
 brew "pass"
+brew "pandoc"
+brew "poppler"
 
 # Editors / agents
 brew "neovim"

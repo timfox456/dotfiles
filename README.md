@@ -188,7 +188,7 @@ is already installed.
 Covers: neovim (tarball), tmux (source build), stow, tree-sitter CLI,
 typescript@5 + typescript-language-server (npm global), the base
 toolchain (`git curl wget mosh jq htop gh glab aerc lazygit fd tree unzip build-essential ruby
-ripgrep fzf pass python3 python3-pip python3-venv` — macOS gets the same via
+ripgrep fzf pass pandoc poppler-utils python3 python3-pip python3-venv` — macOS gets the same via
 `Brewfile`), forge CLIs (`gh glab`), cloud CLIs (`aws az gcloud` — vendor
 installers on Linux, Brewfile on macOS), plus tpm with plugins installed
 non-interactively.
@@ -298,6 +298,41 @@ docker run --rm hello-world
 colima is free, works on Intel and Apple Silicon, and the VM consumes
 nothing until started. Apple Silicon users preferring a GUI can swap
 colima for OrbStack (edit `Brewfile.docker`).
+
+## LaTeX (opt-in)
+
+TeX distributions are multi-GB, so they are **not** installed by default —
+corporate Macs already have MS Office/TeX needs covered separately, and
+servers rarely compile .tex. When a machine needs LaTeX:
+
+```bash
+./install-tex.sh           # balanced: macOS mactex-no-gui cask; Ubuntu a
+                           # ~1.5GB texlive metapackage subset (no docs)
+./install-tex.sh --full    # texlive-full / full MacTeX (~5GB)
+./install-tex.sh --basic   # basictex / texlive-latex-recommended; add
+                           # missing packages later via `tlmgr install <pkg>`
+./install-tex.sh --check   # report only
+```
+
+Ghostscript is installed explicitly on all platforms — the engines need it
+for EPS/image conversions (`epstopdf` etc.) and only texlive-full/MacTeX
+pull it in automatically.
+
+`pandoc` IS default tooling (Brewfile + `TOOL_DEPS`): it's tiny and its
+`pandoc -> PDF` route needs a LaTeX engine only when one is installed, else
+fall back to `--pdf-engine=weasyprint` or plain HTML/epub.
+
+The companion `latex/` stow package holds the config (always linked, even
+without TeX installed):
+
+- `~/.config/latexmk/latexmkrc` — latexmk defaults (pdflatex, bibtex
+  handling, extended `-c` clean list). Per-project overrides in a local
+  `.latexmkrc`; `latexmk -xelatex` / `-lualatex` per run.
+- `~/texmf/tex/latex/tim/tim.sty` — seed for personal macros in the
+  TEXMFHOME tree (TeX Live's default `TEXMFHOME` is `~/texmf` on macOS and
+  Ubuntu — no texmf.cnf or env var needed). `install.sh` pre-creates the
+  `~/texmf` dirs so stow uses file-level links, never tree-folding
+  `~/texmf` into the repo — keep generated files out of the working tree.
 
 ## Manual stow
 

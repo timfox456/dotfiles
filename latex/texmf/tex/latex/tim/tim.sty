@@ -1,0 +1,14 @@
+% tim.sty — personal LaTeX macros, stowed into the TEXMFHOME tree.
+%
+% TeX Live/MacTeX default TEXMFHOME is ~/texmf, so this package's
+% latex/texmf/tex/latex/tim/tim.sty lands where TeX looks automatically —
+% no texmf.cnf or env var needed. install.sh pre-creates the ~/texmf/tex
+% dirs so stow links the file inside them instead of tree-folding ~/texmf
+% into the repo (keep generated/bulk files out of the working tree).
+%
+% Load with \usepackage{tim}. Grows freely — everything below texmf/ is
+% yours; only committed files reach other machines.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{tim}[2026/09/23 personal macros]
+\RequirePackage{microtype}   % lives in texlive-latex-recommended
+% \RequirePackage{booktabs,siunitx}  % uncomment when the full set is installed

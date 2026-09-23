@@ -28,7 +28,8 @@ usage() {
 mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" \
          "$HOME/.config/zerostack" "$HOME/.config/git" "$HOME/.config/shell" \
          "$HOME/.config/aerc" "$HOME/.local/bin" "$HOME/.local/share/aerc" \
-         "$HOME/.local/state/nvim"
+         "$HOME/.local/state/nvim" \
+         "$HOME/.config/latexmk" "$HOME/texmf/tex/latex/tim"
 
 # Guardrail: the secrets file must never be group/world readable.
 [[ -f "$HOME/.config/shell/secrets.local" ]] && chmod 600 "$HOME/.config/shell/secrets.local"
@@ -138,7 +139,10 @@ else
   echo "tier: high (zerostack + pi-rust + pi (TypeScript) + opencode)"
 fi
 
-STOW_PKGS=(tmux-common ghostty zerostack git shell bin aerc nvim pi-rust btop fastfetch)
+# latex/ is tiny config (latexmkrc + TEXMFHOME seed) — stowed even on machines
+# that haven't run install-tex.sh yet; the dirs above are pre-created so the
+# ~/texmf tree gets file-level links instead of a repo-folding ~/texmf symlink.
+STOW_PKGS=(tmux-common ghostty zerostack git shell bin aerc nvim pi-rust btop fastfetch latex)
 if [[ "$TIER" == "high" ]]; then
   STOW_PKGS+=(opencode pi)
 fi
