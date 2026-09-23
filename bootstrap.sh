@@ -14,8 +14,23 @@ REPO_URL="${DOTFILES_URL:-https://github.com/timfox456/dotfiles}"
 if [[ "$(uname -s)" == "Darwin" ]] && ! command -v git >/dev/null 2>&1; then
   if ! command -v brew >/dev/null 2>&1; then
     echo "==> bootstrapping Homebrew (this also installs the Xcode Command Line Tools)"
-    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
-      || { echo "ERROR: Homebrew install failed — install it from https://brew.sh and rerun" >&2; exit 1; }
+    # NONINTERACTIVE=1 makes the installer use `sudo -n`: on a normal Mac it
+    # aborts with "need sudo access" instead of prompting for the password
+    # (this bit on a fresh machine). And under `curl | bash` stdin is the
+    # download pipe, so the installer must read prompts from /dev/tty.
+    # Interactive when a TTY is reachable, non-interactive (passwordless
+    # sudo — CI/pre-configured boxes) only as a last resort.
+    hb_installer="$(mktemp)"
+    curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o "$hb_installer"
+    if [[ -t 0 ]]; then
+      /bin/bash "$hb_installer"
+    elif /bin/bash -c ':' </dev/tty 2>/dev/null; then
+      /bin/bash "$hb_installer" </dev/tty
+    else
+      echo "==> no TTY — non-interactive install (requires passwordless sudo)"
+      NONINTERACTIVE=1 /bin/bash "$hb_installer"
+    fi || { echo "ERROR: Homebrew install failed — install it from https://brew.sh and rerun" >&2; exit 1; }
+    rm -f "$hb_installer"
   fi
   eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
 fi

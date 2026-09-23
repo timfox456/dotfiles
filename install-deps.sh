@@ -183,8 +183,22 @@ ensure_homebrew() {
   [[ "$(uname -s)" == "Darwin" ]] || return 0
   command -v brew >/dev/null 2>&1 && return 0
   log "Homebrew not found — installing it (also installs the Xcode Command Line Tools; this can take a while)"
-  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" \
-    || { warn "Homebrew install failed — install it from https://brew.sh and rerun"; return 0; }
+  # NONINTERACTIVE=1 makes the installer use `sudo -n`: on a normal Mac it
+  # aborts instead of prompting for the password (same bug as bootstrap.sh).
+  # Interactive when a TTY is reachable, non-interactive (passwordless sudo,
+  # e.g. CI) only when no TTY exists.
+  local hb_installer
+  hb_installer="$(mktemp)"
+  curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o "$hb_installer"
+  if [[ -t 0 ]]; then
+    /bin/bash "$hb_installer"
+  elif /bin/bash -c ':' </dev/tty 2>/dev/null; then
+    /bin/bash "$hb_installer" </dev/tty
+  else
+    warn "no TTY — non-interactive install (requires passwordless sudo)"
+    NONINTERACTIVE=1 /bin/bash "$hb_installer"
+  fi || { warn "Homebrew install failed — install it from https://brew.sh and rerun"; return 0; }
+  rm -f "$hb_installer"
   # Make brew visible to the rest of this run regardless of arch/path.
   eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
   command -v brew >/dev/null 2>&1 && log "Homebrew: $(brew --version | head -n1)"
