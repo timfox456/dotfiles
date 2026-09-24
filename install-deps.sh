@@ -558,6 +558,37 @@ ensure_pi_ts() {
 }
 ensure_pi_ts
 
+# --- opencode + Claude Code (high tier only) --------------------------------
+# Official self-updating install scripts -> ~/.local/bin. Cross-platform
+# (macOS + Linux); skipped on the low tier like the TypeScript pi above.
+ensure_opencode() {
+  [[ "$TIER" == "low" ]] && { log "tier low — skipping opencode"; return 0; }
+  if command -v opencode >/dev/null 2>&1; then
+    log "opencode: $(opencode --version 2>&1 | head -n1) (already installed)"
+    return 0
+  fi
+  log "installing opencode -> ~/.local/bin"
+  curl -fsSL https://opencode.ai/install | bash \
+    || warn "opencode install failed — see https://opencode.ai/docs"
+  command -v opencode >/dev/null 2>&1 && \
+    log "opencode: $(opencode --version 2>&1 | head -n1)"
+}
+ensure_opencode
+
+ensure_claude() {
+  [[ "$TIER" == "low" ]] && { log "tier low — skipping Claude Code"; return 0; }
+  if command -v claude >/dev/null 2>&1; then
+    log "claude: $(claude --version 2>&1 | head -n1) (already installed)"
+    return 0
+  fi
+  log "installing Claude Code -> ~/.local/bin"
+  curl -fsSL https://claude.ai/install.sh | bash \
+    || warn "claude install failed — see https://docs.anthropic.com/en/docs/claude-code"
+  command -v claude >/dev/null 2>&1 && \
+    log "claude: $(claude --version 2>&1 | head -n1)"
+}
+ensure_claude
+
 # --- ghostty terminfo (so TERM=xterm-ghostty works on servers) ---------------
 # Vendored terminfo source; installs user-local to ~/.terminfo (no sudo).
 ensure_ghostty_terminfo() {
