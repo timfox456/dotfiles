@@ -213,6 +213,16 @@ ensure_brew_bundle() {
   if [[ "$(uname -s)" != "Darwin" ]] || ! command -v brew >/dev/null 2>&1; then
     return 0
   fi
+  # Homebrew >= 7 refuses to load formulae from third-party taps unless they
+  # are explicitly trusted ("refusing to load formula ... from untrusted tap").
+  # `brew trust` is idempotent and works non-interactively; taps listed in our
+  # Brewfile are trusted by definition.
+  local tap
+  while IFS= read -r tap; do
+    [[ "$tap" == homebrew/* ]] && continue
+    brew trust --tap "$tap" >/dev/null 2>&1 \
+      || warn "could not trust tap '$tap' — run 'brew trust --tap $tap' manually"
+  done < <(sed -n 's/^[[:space:]]*tap[[:space:]]*"\([^"]*\)".*/\1/p' Brewfile)
   if [[ "$(uname -m)" == "arm64" ]]; then
     log "ensuring macOS tooling via Brewfile"
     # NOTE: no --no-lock — older brew versions reject it. The generated
