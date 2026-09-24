@@ -129,3 +129,6 @@ if [[ -f "$HOME/.config/shell/zshrc.local" ]]; then
    # shellcheck source=/dev/null
    source "$HOME/.config/shell/zshrc.local"
 fi
+
+# opencode
+export PATH=/Users/tfox/.opencode/bin:$PATH

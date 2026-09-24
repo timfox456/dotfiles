@@ -6,10 +6,19 @@ set -uo pipefail
 
 PROJECTS_DIR="${PROJECTS_DIR:-$HOME/timfox456}"
 
+# Use fzf-tmux for proper display when inside tmux
+fzf_pick() {
+  if [[ -n "${TMUX:-}" ]] && command -v fzf-tmux >/dev/null 2>&1; then
+    fzf-tmux -p 80%,60%
+  else
+    fzf
+  fi
+}
+
 if [[ $# -eq 1 ]]; then
   selected="$1"
 else
-  selected="$(find "$PROJECTS_DIR" -mindepth 1 -maxdepth 1 -type d | sort | fzf)"
+  selected="$(find "$PROJECTS_DIR" -mindepth 1 -maxdepth 1 -type d | sort | fzf_pick)"
 fi
 
 [[ -z "${selected:-}" ]] && exit 0

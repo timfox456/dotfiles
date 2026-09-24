@@ -523,41 +523,6 @@ ensure_npm_globals() {
 }
 ensure_npm_globals
 
-# --- pi (TypeScript — @earendil-works/pi-coding-agent) -----------------------
-# The full-featured coding agent from the pi-mono repo (the Rust port is
-# pi_agent_rust below). High tier only: needs node >= 22.19. Its `pi` binary
-# is the shell default; settings come from install.sh (pi package ->
-# ~/.config/pi/agent via PI_CODING_AGENT_DIR, set by the shell wrappers).
-PI_MIN_NODE_VERSION="${PI_MIN_NODE_VERSION:-22.19.0}"
-ensure_pi_ts() {
-  [[ "$TIER" == "low" ]] && { log "tier low — skipping TypeScript pi (uses pi-rust instead)"; return 0; }
-  (
-    unset PREFIX
-    if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-      # shellcheck source=/dev/null
-      . "$HOME/.nvm/nvm.sh"
-    fi
-    command -v npm >/dev/null 2>&1 || { warn "npm not found — skipping TypeScript pi install"; return 0; }
-    # TS pi requires node >= 22.19: refresh the nvm LTS when the active node
-    # is older (idempotent — `nvm install --lts` resolves to the newest LTS).
-    local node_cur node_min
-    node_cur="$(node --version 2>/dev/null | sed 's/^v//')"
-    node_min="${PI_MIN_NODE_VERSION#v}"
-    if [[ -z "$node_cur" ]] || ! ver_ge "$node_cur" "$node_min"; then
-      log "node ${node_cur:-missing}: below TypeScript pi minimum ${node_min} — installing latest LTS"
-      nvm install --lts && nvm alias default 'lts/*' \
-        || { warn "node LTS install failed — skipping TypeScript pi"; return 0; }
-      hash -r
-    fi
-    log "ensuring @earendil-works/pi-coding-agent (npm global)"
-    npm install -g -q @earendil-works/pi-coding-agent \
-      || warn "TS pi install failed — run 'npm i -g @earendil-works/pi-coding-agent' manually"
-    command -v pi >/dev/null 2>&1 && \
-      log "pi (TypeScript): $(pi --version 2>&1 | head -n1)"
-  ) || warn "TypeScript pi stage failed"
-}
-ensure_pi_ts
-
 # --- opencode + Claude Code (high tier only) --------------------------------
 # Official self-updating install scripts -> ~/.local/bin. Cross-platform
 # (macOS + Linux); skipped on the low tier like the TypeScript pi above.
@@ -582,8 +547,20 @@ ensure_claude() {
     return 0
   fi
   log "installing Claude Code -> ~/.local/bin"
-  curl -fsSL https://claude.ai/install.sh | bash \
-    || warn "claude install failed — see https://docs.anthropic.com/en/docs/claude-code"
+  # Save to temp file first: the claude binary's `install` step needs a TTY,
+  # which is unavailable when piped (stdin is the pipe content).
+  local claude_installer
+  claude_installer="$(mktemp)"
+  curl -fsSL https://claude.ai/install.sh -o "$claude_installer"
+  if [[ -t 0 ]]; then
+    /bin/bash "$claude_installer"
+  elif /bin/bash -c ':' </dev/tty 2>/dev/null; then
+    /bin/bash "$claude_installer" </dev/tty
+  else
+    warn "no TTY — non-interactive claude install may fail"
+    /bin/bash "$claude_installer"
+  fi || warn "claude install failed — see https://docs.anthropic.com/en/docs/claude-code"
+  rm -f "$claude_installer"
   command -v claude >/dev/null 2>&1 && \
     log "claude: $(claude --version 2>&1 | head -n1)"
 }
@@ -638,17 +615,31 @@ ensure_pi_agent() {
   curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/pi_agent_rust/main/install.sh" \
     | bash -s -- --yes \
     || warn "pi install failed — see https://github.com/Dicklesworthstone/pi_agent_rust#installation"
+
   # Name normalization: the rust build must always be `pi-rust` — `pi` is
-  # reserved for the TypeScript pi (the shell `pi` wrapper only falls back to
-  # pi-rust where TS pi is absent). The rust installer names its binary `pi`
-  # on fresh machines (when no TS pi exists yet), so fix a stale `pi` here.
-  # The rust --version format includes "(<sha> <iso-timestamp>)"; the TS
-  # build's does not.
-  if [[ ! -x "$HOME/.local/bin/pi-rust" && -x "$HOME/.local/bin/pi" ]] && \
-     "$HOME/.local/bin/pi" --version 2>/dev/null | grep -qE '\([0-9a-f]{6,} 20[0-9]{2}-[0-9]{2}-'; then
-    mv "$HOME/.local/bin/pi" "$HOME/.local/bin/pi-rust"
-    log "renamed rust pi binary -> ~/.local/bin/pi-rust"
+  # reserved for the TypeScript pi. The rust installer writes to whichever
+  # bin dir contains the existing pi (often the nvm node bin, not
+  # ~/.local/bin), so check all candidate paths.
+  local rust_src=""
+  local candidate
+  for candidate in \
+    "$HOME/.local/bin/pi" \
+    "$HOME/.nvm/versions/node/*/bin/pi" \
+    "/usr/local/bin/pi"; do
+    # glob may expand to nothing
+    [[ -x "$candidate" ]] || continue
+    if "$candidate" --version 2>/dev/null | grep -qE '\([0-9a-f]{6,} 20[0-9]{2}-[0-9]{2}-'; then
+      rust_src="$candidate"
+      break
+    fi
+  done
+  if [[ -n "$rust_src" && "$rust_src" != "$HOME/.local/bin/pi-rust" ]]; then
+    mkdir -p "$HOME/.local/bin"
+    cp -f "$rust_src" "$HOME/.local/bin/pi-rust"
+    chmod +x "$HOME/.local/bin/pi-rust"
+    log "copied rust pi binary -> ~/.local/bin/pi-rust (from $rust_src)"
   fi
+
   command -v pi-rust >/dev/null 2>&1 && \
     log "pi-rust: $(pi-rust --version 2>&1 | head -n1)"
   command -v pi >/dev/null 2>&1 && \
@@ -656,6 +647,41 @@ ensure_pi_agent() {
   echo "note: both pi builds read provider keys from the environment (OPENROUTER_API_KEY etc. — see secrets.local)"
 }
 ensure_pi_agent
+
+# --- pi (TypeScript — @earendil-works/pi-coding-agent) -----------------------
+# The full-featured coding agent from the pi-mono repo (the Rust port is
+# pi_agent_rust above). High tier only: needs node >= 22.19. Runs AFTER the
+# rust installer so that npm reinstalls the TS binary as `pi`, overwriting
+# any copy the rust installer left in the nvm node bin path.
+PI_MIN_NODE_VERSION="${PI_MIN_NODE_VERSION:-22.19.0}"
+ensure_pi_ts() {
+  [[ "$TIER" == "low" ]] && { log "tier low — skipping TypeScript pi (uses pi-rust instead)"; return 0; }
+  (
+    unset PREFIX
+    if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+      # shellcheck source=/dev/null
+      . "$HOME/.nvm/nvm.sh"
+    fi
+    command -v npm >/dev/null 2>&1 || { warn "npm not found — skipping TypeScript pi install"; return 0; }
+    # TS pi requires node >= 22.19: refresh the nvm LTS when the active node
+    # is older (idempotent — `nvm install --lts` resolves to the newest LTS).
+    local node_cur node_min
+    node_cur="$(node --version 2>/dev/null | sed 's/^v//')"
+    node_min="${PI_MIN_NODE_VERSION#v}"
+    if [[ -z "$node_cur" ]] || ! ver_ge "$node_cur" "$node_min"; then
+      log "node ${node_cur:-missing}: below TypeScript pi minimum ${node_min} — installing latest LTS"
+      nvm install --lts && nvm alias default 'lts/*' \
+        || { warn "node LTS install failed — skipping TypeScript pi"; return 0; }
+      hash -r
+    fi
+    log "ensuring @earendil-works/pi-coding-agent (npm global)"
+    npm install -g -q @earendil-works/pi-coding-agent \
+      || warn "TS pi install failed — run 'npm i -g @earendil-works/pi-coding-agent' manually"
+    command -v pi >/dev/null 2>&1 && \
+      log "pi (TypeScript): $(pi --version 2>&1 | head -n1)"
+  ) || warn "TypeScript pi stage failed"
+}
+ensure_pi_ts
 
 # --- oh-my-zsh (macOS only — Linux servers run bash) -------------------------
 ensure_omz() {
