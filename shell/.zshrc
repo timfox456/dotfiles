@@ -130,5 +130,8 @@ if [[ -f "$HOME/.config/shell/zshrc.local" ]]; then
    source "$HOME/.config/shell/zshrc.local"
 fi
 
-# opencode
-export PATH=/Users/tfox/.opencode/bin:$PATH
+# opencode (official installer's default: ~/.opencode/bin)
+case ":$PATH:" in
+  *":$HOME/.opencode/bin:"*) ;;
+  *) [[ -d "$HOME/.opencode/bin" ]] && export PATH="$HOME/.opencode/bin:$PATH" ;;
+esac

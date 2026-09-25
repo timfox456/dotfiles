@@ -551,7 +551,10 @@ ensure_claude() {
   # which is unavailable when piped (stdin is the pipe content).
   local claude_installer
   claude_installer="$(mktemp)"
-  curl -fsSL https://claude.ai/install.sh -o "$claude_installer"
+  # Bail out on download failure: an empty/partial file would otherwise be
+  # executed by bash below (bash exits 0 on an empty script).
+  curl -fsSL https://claude.ai/install.sh -o "$claude_installer" \
+    || { rm -f "$claude_installer"; warn "claude installer download failed — see https://docs.anthropic.com/en/docs/claude-code"; return 0; }
   if [[ -t 0 ]]; then
     /bin/bash "$claude_installer"
   elif /bin/bash -c ':' </dev/tty 2>/dev/null; then
