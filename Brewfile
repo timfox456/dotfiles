@@ -38,6 +38,7 @@ cask "visual-studio-code"
 brew "shellcheck"
 brew "actionlint"
 brew "lua"
+brew "ruby"
 
 # System monitoring / info
 brew "btop"
