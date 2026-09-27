@@ -253,7 +253,9 @@ ensure_homebrew() {
   rm -f "$hb_installer"
   # Make brew visible to the rest of this run regardless of arch/path.
   eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
-  command -v brew >/dev/null 2>&1 && log "Homebrew: $(brew --version | head -n1)"
+  if command -v brew >/dev/null 2>&1; then
+    log "Homebrew: $(brew --version | head -n1)"
+  fi
 }
 ensure_homebrew
 
@@ -395,8 +397,9 @@ ensure_brew_bundle_docker() {
   log "ensuring container tier (colima + docker + compose) via Brewfile.docker"
   brew bundle --file=Brewfile.docker \
     || warn "docker tier install failed — see Brewfile.docker"
-  command -v colima >/dev/null 2>&1 && \
+  if command -v colima >/dev/null 2>&1; then
     echo "container tier ready. start the VM with: colima start   (stop: colima stop)"
+  fi
 }
 ensure_brew_bundle_docker
 
@@ -598,8 +601,16 @@ ensure_opencode() {
   log "installing opencode -> ~/.local/bin"
   curl -fsSL https://opencode.ai/install | bash \
     || warn "opencode install failed — see https://opencode.ai/docs"
-  command -v opencode >/dev/null 2>&1 && \
+  # if-block, not `command -v X && log ...`: as a function's LAST command
+  # that returns 1 when X is absent, which `set -e` turns into a fatal
+  # error at the call site. This is what aborted the Linux CI dogfood:
+  # the opencode installer puts the binary on PATH for FUTURE shells,
+  # so the probe failed in the current one and killed the whole run.
+  if command -v opencode >/dev/null 2>&1; then
     log "opencode: $(opencode --version 2>&1 | head -n1)"
+  else
+    log "opencode installed — not yet on PATH in this shell (new shells will see it)"
+  fi
 }
 ensure_opencode
 
@@ -627,8 +638,11 @@ ensure_claude() {
     /bin/bash "$claude_installer"
   fi || warn "claude install failed — see https://docs.anthropic.com/en/docs/claude-code"
   rm -f "$claude_installer"
-  command -v claude >/dev/null 2>&1 && \
+  if command -v claude >/dev/null 2>&1; then
     log "claude: $(claude --version 2>&1 | head -n1)"
+  else
+    log "claude installed — not yet on PATH in this shell (new shells will see it)"
+  fi
 }
 ensure_claude
 
@@ -644,8 +658,11 @@ ensure_ghostty_terminfo() {
     warn "terminfo/xterm-ghostty.terminfo missing from repo — skipping"
     return 0
   fi
-  tic -x terminfo/xterm-ghostty.terminfo \
-    && log "installed terminfo xterm-ghostty -> $HOME/.terminfo"
+  if tic -x terminfo/xterm-ghostty.terminfo; then
+    log "installed terminfo xterm-ghostty -> $HOME/.terminfo"
+  else
+    warn "tic failed to compile the ghostty terminfo (non-fatal)"
+  fi
 }
 ensure_ghostty_terminfo
 
@@ -661,8 +678,9 @@ ensure_zerostack() {
   fi
   # Config comes from install.sh (stowed ~/.config/zerostack/config.toml —
   # secret-free; the API key resolves from OPENROUTER_API_KEY at runtime).
-  command -v zerostack >/dev/null 2>&1 && \
+  if command -v zerostack >/dev/null 2>&1; then
     echo "note: put OPENROUTER_API_KEY in ~/.config/shell/secrets.local (per machine — never in shell rc files or this repo)"
+  fi
 }
 ensure_zerostack
 
@@ -709,10 +727,12 @@ ensure_pi_agent() {
     log "copied rust pi binary -> ~/.local/bin/pi-rust (from $rust_src)"
   fi
 
-  command -v pi-rust >/dev/null 2>&1 && \
+  if command -v pi-rust >/dev/null 2>&1; then
     log "pi-rust: $(pi-rust --version 2>&1 | head -n1)"
-  command -v pi >/dev/null 2>&1 && \
+  fi
+  if command -v pi >/dev/null 2>&1; then
     log "pi (TypeScript): $(pi --version 2>&1 | head -n1)"
+  fi
   echo "note: both pi builds read provider keys from the environment (OPENROUTER_API_KEY etc. — see secrets.local)"
 }
 ensure_pi_agent

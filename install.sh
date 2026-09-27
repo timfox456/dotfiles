@@ -166,8 +166,12 @@ fi
 # (pi needs two checks: a file-level settings link or a tree-folded
 # ~/.config/pi symlink — see the stow-folding footgun in AGENTS.md.)
 if [[ "$TIER" == "low" ]]; then
-  [[ -L "$HOME/.config/opencode/opencode.json" ]] && \
-    { stow -D -t "$HOME" opencode && echo "unstowed: opencode (low tier)"; } || true
+  # An if-block, not `A && B || true`: that pattern trips SC2015, and the
+  # linter on the CI runner (older than the local one) exits non-zero even on
+  # info-level findings.
+  if [[ -L "$HOME/.config/opencode/opencode.json" ]]; then
+    stow -D -t "$HOME" opencode && echo "unstowed: opencode (low tier)"
+  fi
 fi
 
 # Migration: the pi / pi-rust agent settings.json used to be stowed from this
@@ -266,5 +270,6 @@ if compgen -G "$HOME/.zshrc.bak*" >/dev/null || compgen -G "$HOME/.bashrc.bak*" 
   echo "  sort -u ~/.config/shell/secrets.local -o ~/.config/shell/secrets.local && chmod 600 ~/.config/shell/secrets.local"
 fi
 
-[[ "$VARIANT" == "server" ]] && \
-  echo "note: server variant linked. remaining manual steps are in the README (secrets, git identity, ssh, gmail)." || true
+if [[ "$VARIANT" == "server" ]]; then
+  echo "note: server variant linked. remaining manual steps are in the README (secrets, git identity, ssh, gmail)."
+fi
