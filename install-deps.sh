@@ -32,6 +32,51 @@ MIN_TS_CLI_VERSION="${MIN_TS_CLI_VERSION:-0.24.0}"
 MIN_NVIM_VERSION="${MIN_NVIM_VERSION:-0.11.0}"   # vim.lsp.config / vim.lsp.enable era
 MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs >= 3.3
 
+# --- third-party git dependency pins -----------------------------------------
+# tpm, oh-my-zsh and the tmux plugins were the only deps with NO pinning at
+# all: cloned at HEAD and `git pull`ed, so two machines set up a month apart
+# got different code. They are pinned by COMMIT, not tag: every one of these
+# projects stopped tagging years ago (tpm's newest tag is 3 years behind its
+# HEAD, tmux-sensible's is from 2015), so a tag pin would be a silent
+# multi-year downgrade.
+#
+# To bump one deliberately: update the SHA here, rerun this script, smoke-test,
+# then commit. `TPM_REF=<sha> ./install-deps.sh` overrides for a one-off test.
+TPM_REF="${TPM_REF:-e261deb1b47614eed3400089ce7197dc68acc4eb}"          # 2026-05-17
+OMZ_REF="${OMZ_REF:-74965c96098134b192f00084f966b4b02438a739}"          # 2026-09-22
+# "<plugin dir name> <commit>" — dirs are created by tpm under $TPM_DIR
+TMUX_PLUGIN_PINS=(
+  "tmux-sensible      25cb91f42d020f675bb0a2ce3fbd3a5d96119efa"
+  "tmux-fzf           e91c1ae55389f2b34480ea23df77682bdd51d735"
+  "vim-tmux-navigator 412c474e97468e7934b9c217064025ea7a69e05e"
+  "catppuccin-tmux    b4e0715356f820fc72ea8e8baf34f0f60e891718"
+  "tmux-resurrect     cff343cf9e81983d3da0c8562b01616f12e8d548"
+  "tmux-continuum     0698e8f4b17d6454c71bf5212895ec055c578da0"
+  "tmux-yank          acfd36e4fcba99f8310a7dfb432111c242fe7392"
+)
+
+# Check out a git repo at an exact commit. Idempotent, and never fatal: an
+# unreachable pin leaves the checkout alone and warns.
+pin_git_ref() {
+  local dir="$1" ref="$2" label cur
+  label="${dir##*/}"
+  [[ -d "$dir/.git" ]] || { warn "$label: not a git checkout — cannot pin"; return 0; }
+  cur="$(git -C "$dir" rev-parse HEAD 2>/dev/null || true)"
+  [[ "$cur" == "$ref" ]] && return 0
+  # The pin is usually already local (it is an ancestor of the cloned branch);
+  # fetch only when it is not, e.g. tpm's --single-branch clones on a machine
+  # whose branch tip has moved past the pin.
+  if ! git -C "$dir" cat-file -e "${ref}^{commit}" 2>/dev/null; then
+    git -C "$dir" fetch -q --depth 1 origin "$ref" 2>/dev/null \
+      || git -C "$dir" fetch -q origin 2>/dev/null || true
+  fi
+  if git -C "$dir" checkout -q --detach "$ref" 2>/dev/null; then
+    log "$label pinned -> ${ref:0:8}"
+  else
+    warn "$label: could not check out pin ${ref:0:8} (left at ${cur:0:8})"
+  fi
+}
+
 # Packages the setup relies on:
 #   stow -> install.sh (dotfiles linking; noble ships 2.3.1, fully sufficient)
 #   rg -> telescope live_grep          fzf -> tmux-fzf
@@ -713,13 +758,15 @@ ensure_omz() {
     return 0
   fi
   if [[ -d "$HOME/.oh-my-zsh/.git" ]]; then
-    log "oh-my-zsh: updating"
-    git -C "$HOME/.oh-my-zsh" pull --ff-only -q || true
+    log "oh-my-zsh: converging on pin ${OMZ_REF:0:8}"
   else
-    log "installing oh-my-zsh -> ~/.oh-my-zsh"
-    git clone -q --depth=1 https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh" \
+    log "installing oh-my-zsh -> ~/.oh-my-zsh (pinned ${OMZ_REF:0:8})"
+    # No --depth=1: a shallow clone of the branch tip usually will not contain
+    # the pinned commit. blob:none keeps it cheap anyway.
+    git clone -q --filter=blob:none https://github.com/ohmyzsh/ohmyzsh.git "$HOME/.oh-my-zsh" \
       || warn "oh-my-zsh install failed — see https://ohmyz.sh"
   fi
+  pin_git_ref "$HOME/.oh-my-zsh" "$OMZ_REF"
 }
 ensure_omz
 
@@ -880,23 +927,23 @@ fi
 
 # --- tpm: tmux plugin manager (must live at ~/.config/tmux/plugins/tpm) -----
 TPM_DIR="$HOME/.config/tmux/plugins/tpm"
+PLUGIN_ROOT="$HOME/.config/tmux/plugins"
 LEGACY_TPM_DIR="$HOME/.tmux/plugins/tpm"
 
 if command -v git >/dev/null 2>&1; then
   if [[ -d "$TPM_DIR/.git" ]]; then
-    log "updating tpm at $TPM_DIR"
-    git -C "$TPM_DIR" pull --ff-only -q || warn "tpm update failed (non-fatal)"
+    log "tpm at $TPM_DIR: converging on pin ${TPM_REF:0:8}"
   elif [[ -d "$LEGACY_TPM_DIR/.git" ]]; then
     log "migrating legacy tpm: ~/.tmux/plugins -> ~/.config/tmux/plugins"
     mkdir -p "$HOME/.config/tmux/plugins"
     mv "$HOME/.tmux/plugins/"* "$HOME/.config/tmux/plugins/" || true
     rmdir "$HOME/.tmux/plugins" "$HOME/.tmux" 2>/dev/null || true
-    git -C "$TPM_DIR" pull --ff-only -q 2>/dev/null || true
   else
     log "installing tpm -> $TPM_DIR"
     mkdir -p "$HOME/.config/tmux/plugins"
     git clone -q https://github.com/tmux-plugins/tpm "$TPM_DIR" || warn "tpm clone failed"
   fi
+  pin_git_ref "$TPM_DIR" "$TPM_REF"
   # modern tpm ships bin/install_plugins; older versions bin/install_plugins.sh
   TPM_INSTALL=""
   for cand in "$TPM_DIR/bin/install_plugins" "$TPM_DIR/bin/install_plugins.sh"; do
@@ -906,6 +953,13 @@ if command -v git >/dev/null 2>&1; then
     log "installing tmux plugins (non-interactive)"
     "$TPM_INSTALL" >/dev/null 2>&1 \
       || warn "plugin install failed — run 'prefix + I' inside tmux"
+    # tpm clones each plugin at its default branch (its `@plugin ... #ref`
+    # syntax feeds `git clone -b`, which takes only a branch or tag — and
+    # these projects have no usable tags). Pin the checkouts afterwards.
+    for pin in "${TMUX_PLUGIN_PINS[@]}"; do
+      read -r pin_dir pin_sha <<< "$pin"
+      [[ -d "$PLUGIN_ROOT/$pin_dir" ]] && pin_git_ref "$PLUGIN_ROOT/$pin_dir" "$pin_sha"
+    done
   else
     warn "tpm unavailable — run 'prefix + I' inside tmux to install plugins"
   fi

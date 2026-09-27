@@ -1,4 +1,36 @@
+# --- editor / OS noise -------------------------------------------------------
 .DS_Store
+._*
+*.swp
+*.swo
+*~
+
+# --- build + run artifacts ---------------------------------------------------
 Brewfile.lock.json
 *.log
+
+# --- machine-local state that can appear INSIDE a package --------------------
+# Every package dir mirrors $HOME, so the apps we stow to write their own state
+# straight back into this tree. install.sh's check_packages() refuses to STOW
+# these; the entries below stop `git add -A` from COMMITTING them first.
+# (The repo is public — see the secrets policy in AGENTS.md.)
+secrets.local
+auth.json
+credentials.json
+token.*
+*.pem
+*.key
+id_rsa*
+id_ed25519*
 gitconfig.local
+zshrc.local
+bashrc.local
+settings.local.json
+tool-output-artifacts/
+node_modules/
+.venv/
+__pycache__/
+
+# Backups install.sh makes when it moves a conflicting target aside
+*.bak
+*.bak.*

@@ -35,6 +35,12 @@ stage then installs `git` and everything else.
   `git restore lazy-lock.json` pull ritual is retired. Low-RAM instances
   (< 2GB) automatically skip heavyweight LSP servers (pyright/ts_ls) and
   Codeium; override with `NVIM_TINY=1` or `NVIM_TINY=0`.
+- `tpm`, `oh-my-zsh` and every tmux plugin are pinned to a commit in
+  `install-deps.sh` (`TPM_REF`, `OMZ_REF`, `TMUX_PLUGIN_PINS`) — these
+  projects stopped tagging years ago, so a tag pin would be a multi-year
+  downgrade. Rerunning `install-deps.sh` converges an existing checkout onto
+  the pin; bump the SHA there to update. Override for a one-off test with
+  e.g. `TPM_REF=<sha> ./install-deps.sh`.
 - `tmux/` vs `tmux-server/` — only one gets linked (both want
   `~/.config/tmux/tmux.conf`). Shared settings in `tmux-common/`.
   Sessionizer: `M-s` (no prefix) or the `s` alias switches/creates a project
@@ -348,3 +354,7 @@ stow --restow -t ~ nvim tmux-server tmux-common ghostty opencode zerostack git s
 (`install.sh` is the supported entry point — it unstows the opposite tmux
 variant, seeds the lazy lockfile and handles the ordering. The manual form
 is for surgery.)
+
+## License
+
+MIT — see [LICENSE](LICENSE). Copy anything you find useful.

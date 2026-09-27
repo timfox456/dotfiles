@@ -40,6 +40,14 @@ desktops (i3)** and **Ubuntu servers**.
   dogfood — keep it green.
 - New tooling for macOS goes in the `Brewfile`; Linux apt packages go in
   `TOOL_DEPS` in `install-deps.sh`.
+- **Everything third-party is pinned.** nvim plugins via
+  `nvim/.config/nvim/lazy-lock.json`; nvim/tmux/nvm/uv via the version vars
+  at the top of `install-deps.sh`; tpm, oh-my-zsh and the tmux plugins via
+  `TPM_REF` / `OMZ_REF` / `TMUX_PLUGIN_PINS` in the same file. Those last
+  three are pinned by COMMIT, not tag: tpm's newest tag is 3 years behind its
+  HEAD and tmux-sensible's is from 2015, so a tag pin silently downgrades by
+  years. Bump a pin deliberately (edit the SHA, rerun `install-deps.sh`,
+  smoke-test, commit) — never by letting a `git pull` drift.
 
 ## Secrets policy (critical — repo is PUBLIC)
 
@@ -53,6 +61,28 @@ desktops (i3)** and **Ubuntu servers**.
 - Files that must stay secret-free: `zerostack/.config/zerostack/config.toml`
   is a stowed symlink into this public repo — keys resolve from env via
   zerostack's `api_key_env` mechanism instead.
+- Two mechanical layers back the policy up, because every package dir mirrors
+  `$HOME` and the apps we stow to write state right back into this tree:
+  `.gitignore` blocks the usual state/secret names from being COMMITTED, and
+  `check_packages()` in `install.sh` refuses to STOW them. Neither is a
+  substitute for reading your own diff.
+
+### If a credential does get committed
+
+Order matters — do NOT start with git surgery:
+
+1. **Rotate/revoke the key first.** Assume it is compromised the moment it
+   lands on a public remote: GitHub serves pushed objects to anyone who knows
+   the SHA, they survive in forks and PR refs, and scrapers watch the firehose.
+   Rewriting history does not un-leak anything.
+2. Purge it from history with `git filter-repo` (or the BFG), then
+   force-push every affected branch and tag. GitHub's guide:
+   <https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository>
+3. Ask GitHub Support to clear cached views/forks if the object is still
+   reachable, and re-clone on every machine — a stale local clone still has
+   the blob and will happily push it back.
+4. Add the leaked path/pattern to `.gitignore` and, if the CI secret scan
+   missed the shape, extend the pattern in `.github/workflows/ci.yml`.
 - Machine-local state (opencode `node_modules`, tpm plugins, lazy-lock live
   copies) stays out of git via stow file-links. NOTE: a `.stow-local-ignore`
   at the stow-dir root does NOTHING — stow only reads
