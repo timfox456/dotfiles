@@ -14,25 +14,87 @@ jobs:
       - name: Install lint tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq shellcheck lua5.4 stow tmux
+          sudo apt-get install -y -qq shellcheck lua5.4 stow tmux zsh
 
       - name: bash syntax (bash -n)
         run: |
           bash -n install.sh
           bash -n install-deps.sh
           bash -n install-tex.sh
+          bash -n bootstrap.sh
+          bash -n bin/.local/bin/lazy-lock-sync
           bash -n bin/.local/bin/tmux-sessionizer
           bash -n shell/.bash_aliases
           bash -n shell/.bashrc
 
+      - name: zsh syntax (zsh -n)
+        run: zsh -n shell/.zshrc
+
       - name: shellcheck
-        run: shellcheck install.sh install-deps.sh install-tex.sh bin/.local/bin/tmux-sessionizer shell/.bash_aliases shell/.bashrc
+        run: |
+          shellcheck install.sh install-deps.sh install-tex.sh bootstrap.sh \
+            bin/.local/bin/lazy-lock-sync bin/.local/bin/tmux-sessionizer \
+            shell/.bash_aliases shell/.bashrc
+
+      - name: actionlint
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color
 
       - name: lua syntax (luac)
         run: find nvim/.config/nvim/lua -name '*.lua' -print0 | xargs -0 -n1 luac5.4 -p
 
-      - name: opencode.json validity
-        run: python3 -m json.tool opencode/.config/opencode/opencode.json > /dev/null
+      - name: JSON validity
+        run: |
+          for f in opencode/.config/opencode/opencode.json \
+                   nvim/.config/nvim/lazy-lock.json \
+                   karabiner/karabiner.json; do
+            python3 -m json.tool "$f" > /dev/null
+          done
+
+  hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stowed packages exist and have a sane layout
+        # install.sh aborting because a listed package was deleted has bitten
+        # this repo once already (the pi packages).
+        run: |
+          status=0
+          # every STOW_PKGS=( ... ) / STOW_PKGS+=( ... ) on any line, including
+          # the conditional one-liners (i3 on Linux desktops)
+          pkgs=$(grep -oE 'STOW_PKGS\+?=\([^)]*\)' install.sh \
+                 | sed -E 's/.*\(//; s/\)//' | tr ' ' '\n' | sort -u)
+          for pkg in $pkgs; do
+            case "$pkg" in ''|\$*|\"*) continue ;; esac
+            if [ ! -d "$pkg" ]; then
+              echo "::error::install.sh stows '$pkg' but the package does not exist"
+              status=1
+              continue
+            fi
+            # A NON-dot file at a package root is linked straight into $HOME
+            # (~/config, ~/lazy-lock-sync). Dotfiles there are correct
+            # (shell/.zshrc -> ~/.zshrc); so are dirs mirroring $HOME (texmf).
+            while IFS= read -r f; do
+              echo "::error file=$f::non-dot file at a package root — stow links this into \$HOME"
+              status=1
+            done < <(find "$pkg" -mindepth 1 -maxdepth 1 -type f ! -name '.*')
+            echo "package ok: $pkg"
+          done
+          exit $status
+
+      - name: Secret scan
+        # The repo is public and its whole secrets model is "per-machine files
+        # that never enter git" — make that mechanical, not just a policy doc.
+        run: |
+          if git grep -nIE \
+              "(sk-(or-v1-|ant-|proj-)[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)" \
+              -- . ':!.github/workflows/ci.yml' ; then
+            echo "::error::possible credential committed — see matches above"
+            exit 1
+          fi
+          echo "no credential patterns found"
 
   ubuntu:
     runs-on: ubuntu-latest
@@ -53,8 +115,6 @@ jobs:
           test -f "$HOME/.config/zerostack/config.toml"
           test -L "$HOME/.config/ghostty/config"
           test -L "$HOME/.config/opencode/opencode.json"
-          test -L "$HOME/.config/pi/agent/settings.json"
-          test -L "$HOME/.config/pi-rust/agent/settings.json"
           test -L "$HOME/.config/git/ignore"
           test -L "$HOME/.gitconfig"
           test -L "$HOME/.config/latexmk/latexmkrc"
@@ -77,9 +137,10 @@ jobs:
 
       - name: Verify low-tier links
         run: |
-          test -L "$HOME/.config/pi-rust/agent/settings.json"
           test ! -L "$HOME/.config/opencode/opencode.json"
-          test ! -e "$HOME/.config/pi/agent/settings.json"
+          # the rest of the packages stay linked across a tier downgrade
+          test -L "$HOME/.config/nvim"
+          test -L "$HOME/.config/tmux/tmux.conf"
 
   macos:
     runs-on: macos-latest

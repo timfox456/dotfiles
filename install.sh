@@ -6,8 +6,8 @@
 #                            # headless Linux (no DISPLAY) = server
 #   ./install.sh --server    # force server variant (tmux prefix C-a)
 #   ./install.sh --desktop   # force desktop variant (tmux prefix C-b, i3 on Linux)
-#   ./install.sh --low       # force low tier: no opencode, no TS pi
-#                            # (zerostack + pi-rust only; `pi` falls back to pi-rust)
+#   ./install.sh --low       # force low tier: no opencode config
+#                            # (`pi` falls back to pi-rust via the shell wrappers)
 #   ./install.sh --high      # force high tier (default on desktops and >= 2GB servers)
 #   ./install.sh --help
 #
@@ -42,7 +42,7 @@ mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" \
 # timestamped backup. Never uses stow --adopt: adopting would pull machine
 # files into this public repo.
 resolve_stow_conflicts() {
-  local round target resolved owner bak
+  local round target resolved owner bak resolved_any
   local -a targets
   for round in 1 2 3 4 5; do
     targets=()
@@ -70,6 +70,7 @@ resolve_stow_conflicts() {
         ' | sort -u || true)
     ((${#targets[@]})) || return 0
 
+    resolved_any=0
     for target in "${targets[@]}"; do
       [[ -z "$target" ]] && continue
       resolved="$(readlink -f "$HOME/$target" 2>/dev/null || echo "$HOME/$target")"
@@ -81,6 +82,7 @@ resolve_stow_conflicts() {
         pkg="$(basename "$dir")"
         [[ "$resolved" == "$dir"* || "$resolved" == "${dir%/}" ]] && { owner="$pkg"; break; }
       done
+      resolved_any=1
       if [[ -n "$owner" ]]; then
         echo "unstowing conflicting package: $owner (owns $target)"
         stow -D -t "$HOME" "$owner" 2>/dev/null || true
@@ -91,7 +93,12 @@ resolve_stow_conflicts() {
         echo "backed up: $HOME/$target -> $bak"
       fi
     done
+    # Every reported target was unparseable (empty after the sed): there is
+    # nothing we can act on, so stop instead of burning the remaining rounds.
+    ((resolved_any)) || return 0
   done
+  # The last round may have fixed everything — re-simulate before failing.
+  stow -n -t "$HOME" "$@" >/dev/null 2>&1 && return 0
   echo "ERROR: stow conflicts persist after $round rounds — resolve manually" >&2
   return 1
 }
@@ -122,8 +129,9 @@ if [[ -z "$VARIANT" ]]; then
 fi
 
 # --- tier selection -----------------------------------------------------------
-# Low tier = zerostack + pi-rust only (1GB boxes: opencode is Bun-based/too
-# heavy and the TypeScript pi needs node >= 22). Forced via --low/--high;
+# Low tier: 1GB boxes get no opencode (Bun-based, too heavy) and no
+# TypeScript pi (needs node >= 22) — install-deps.sh skips installing both,
+# and this script skips stowing opencode's config. Forced via --low/--high;
 # otherwise autodetected on Linux servers from total RAM (< 2GB = low), same
 # threshold as nvim's lowmem gate. Desktops and macOS are always high.
 if [[ -z "$TIER" ]]; then
@@ -134,17 +142,17 @@ if [[ -z "$TIER" ]]; then
   fi
 fi
 if [[ "$TIER" == "low" ]]; then
-  echo "tier: low (zerostack + pi-rust only)"
+  echo "tier: low (no opencode config)"
 else
-  echo "tier: high (zerostack + pi-rust + pi (TypeScript) + opencode)"
+  echo "tier: high (opencode config included)"
 fi
 
 # latex/ is tiny config (latexmkrc + TEXMFHOME seed) — stowed even on machines
 # that haven't run install-tex.sh yet; the dirs above are pre-created so the
 # ~/texmf tree gets file-level links instead of a repo-folding ~/texmf symlink.
-STOW_PKGS=(tmux-common ghostty zerostack git shell bin aerc nvim pi-rust btop fastfetch latex)
+STOW_PKGS=(tmux-common ghostty zerostack git shell bin aerc nvim btop fastfetch latex)
 if [[ "$TIER" == "high" ]]; then
-  STOW_PKGS+=(opencode pi)
+  STOW_PKGS+=(opencode)
 fi
 if [[ "$VARIANT" == "server" ]]; then
   STOW_PKGS+=(tmux-server)
@@ -160,10 +168,64 @@ fi
 if [[ "$TIER" == "low" ]]; then
   [[ -L "$HOME/.config/opencode/opencode.json" ]] && \
     { stow -D -t "$HOME" opencode && echo "unstowed: opencode (low tier)"; } || true
-  if [[ -L "$HOME/.config/pi/agent/settings.json" || -L "$HOME/.config/pi" ]]; then
-    stow -D -t "$HOME" pi && echo "unstowed: pi (low tier)"
-  fi
 fi
+
+# Migration: the pi / pi-rust agent settings.json used to be stowed from this
+# repo. It only ever held machine state (lastChangelogVersion), so the packages
+# are gone and both agent dirs are plain machine-local dirs now. Clear out the
+# dangling links the old layout left behind so each agent can write its own.
+# ~/lazy-lock-sync is the same kind of leftover: bin/lazy-lock-sync used to
+# sit at the package root, so stow linked it into $HOME directly. It lives at
+# bin/.local/bin/ now (i.e. ~/.local/bin/lazy-lock-sync).
+for stale in "$HOME/.config/pi/agent/settings.json" \
+             "$HOME/.config/pi-rust/agent/settings.json" \
+             "$HOME/lazy-lock-sync"; do
+  if [[ -L "$stale" && ! -e "$stale" ]] && \
+     [[ "$(readlink "$stale")" == *"$(basename "$REPO_DIR")"/* ]]; then
+    rm -f "$stale"
+    echo "removed dangling link from the old layout: $stale"
+  fi
+done
+
+# --- package sanity guard -----------------------------------------------------
+# Two classes of bug have bitten this repo before, both mechanically checkable:
+#   1. a package listed here but missing from the repo (stow aborts the whole
+#      run — this happened when the pi packages were deleted);
+#   2. a package file at the package ROOT, which stow links straight into
+#      $HOME (~/config instead of ~/.config/i3/config — happened with i3/).
+# Also refuses to stow well-known machine-state names: a stow-dir-root
+# .stow-local-ignore does NOT apply to packages (stow only reads
+# <package>/.stow-local-ignore), so this is the guardrail, not that file.
+LEAK_NAMES=(auth.json gitconfig.local .DS_Store node_modules tool-output-artifacts)
+check_packages() {
+  local pkg f base problems=0
+  for pkg in "$@"; do
+    if [[ ! -d "$REPO_DIR/$pkg" ]]; then
+      echo "ERROR: package '$pkg' is listed for stowing but does not exist in $REPO_DIR" >&2
+      problems=1
+      continue
+    fi
+    # A NON-dot file at the package root is the bug (~/config, ~/lazy-lock-sync).
+    # Dotfiles there are correct — shell/.zshrc -> ~/.zshrc — and so are root
+    # directories that mirror a real $HOME dir (latex/texmf -> ~/texmf).
+    while IFS= read -r f; do
+      echo "ERROR: $pkg/$(basename "$f") is a non-dot file at the package root —" >&2
+      echo "       stow links it straight into \$HOME. Move it under" >&2
+      echo "       $pkg/.config/<app>/ or $pkg/.local/bin/." >&2
+      problems=1
+    done < <(find "$REPO_DIR/$pkg" -mindepth 1 -maxdepth 1 -type f ! -name '.*' -print)
+    for base in "${LEAK_NAMES[@]}"; do
+      while IFS= read -r f; do
+        echo "ERROR: machine-local state in the repo: ${f#"$REPO_DIR"/}" >&2
+        echo "       this must never be stowed from (or committed to) a public repo." >&2
+        problems=1
+      done < <(find "$REPO_DIR/$pkg" -name "$base" -print)
+    done
+  done
+  ((problems)) && return 1
+  return 0
+}
+check_packages "${STOW_PKGS[@]}"
 
 resolve_stow_conflicts "${STOW_PKGS[@]}"
 stow --restow -t "$HOME" "${STOW_PKGS[@]}"
@@ -204,5 +266,5 @@ if compgen -G "$HOME/.zshrc.bak*" >/dev/null || compgen -G "$HOME/.bashrc.bak*" 
   echo "  sort -u ~/.config/shell/secrets.local -o ~/.config/shell/secrets.local && chmod 600 ~/.config/shell/secrets.local"
 fi
 
-[[ "${1:-}" == "--server" ]] && \
+[[ "$VARIANT" == "server" ]] && \
   echo "note: server variant linked. remaining manual steps are in the README (secrets, git identity, ssh, gmail)." || true

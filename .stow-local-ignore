@@ -1,7 +1,21 @@
+# NOTE ON SCOPE (this bit us): GNU Stow reads <package>/.stow-local-ignore,
+# then ~/.stow-global-ignore — it does NOT read a .stow-local-ignore at the
+# stow-directory root. This file therefore matches nothing at stow time; the
+# repo-root entries below only ever "worked" because those files live outside
+# every package and stow never looks at them.
+#
+# The real guardrails are:
+#   - check_packages() in install.sh (root-level files + machine-state names)
+#   - the package-hygiene job in .github/workflows/ci.yml
+# If a specific package ever needs to hide a file from stow, put a
+# .stow-local-ignore inside THAT package directory.
+#
+# Kept as documentation of the repo-root files that are not packages:
 README\.md
 AGENTS\.md
 install\.sh
 install-deps\.sh
+install-tex\.sh
 bootstrap\.sh
 Brewfile
 Brewfile\.lock\.json
@@ -9,9 +23,4 @@ Brewfile\.docker
 \.bak$
 \.DS_Store
 terminfo
-gitconfig\.local$
-automatic_backups
-zshrc\.local$
-bashrc\.local$
-tool-output-artifacts
-settings\.json
+karabiner

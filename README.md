@@ -47,10 +47,12 @@ stage then installs `git` and everything else.
 - **pi agents** — two builds share the `pi` name, kept apart by shell
   wrappers (in `.zshrc`/`.bashrc`) that give each its own agent dir:
   - `pi` → the TypeScript pi (`@earendil-works/pi-coding-agent`, config
-    stowed from `pi/` → `~/.config/pi/agent`). The default everywhere it's
+    agent dir `~/.config/pi/agent`, machine-local). The default everywhere it's
     installed; on low-tier servers it falls back to `pi-rust`.
-  - `pir` → pi_agent_rust (config stowed from `pi-rust/` →
-    `~/.config/pi-rust/agent`; sessions in `~/.local/state/pi-rust/sessions`).
+  - `pir` → pi_agent_rust (agent dir `~/.config/pi-rust/agent`; sessions in
+    `~/.local/state/pi-rust/sessions`). Neither agent dir is stowed: their
+    settings.json is machine state, and keeping it out of the repo also keeps
+    auth.json and session history away from this public tree.
   The rust binary must always be named `pi-rust` — `install-deps.sh`
   normalizes the rust installer's `pi` name. `auth.json` for both builds is
   machine-local and never enters the repo.

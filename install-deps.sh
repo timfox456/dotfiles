@@ -20,6 +20,10 @@
 #   TMUX_VERSION=3.7c ./install-deps.sh
 set -euo pipefail
 
+# Brewfile, Brewfile.docker and terminfo/ are read by relative path — this
+# script must run from the repo root no matter where it was invoked from.
+cd "$(dirname "$0")"
+
 NVIM_VERSION="${NVIM_VERSION:-0.12.4}"
 TMUX_VERSION="${TMUX_VERSION:-3.7c}"
 NVM_VERSION="${NVM_VERSION:-v0.40.7}"
@@ -182,6 +186,9 @@ TMUX_CUR="$(current_tmux_version || true)"
 ensure_homebrew() {
   [[ "$(uname -s)" == "Darwin" ]] || return 0
   command -v brew >/dev/null 2>&1 && return 0
+  # --check is documented as "report only, change nothing" — installing
+  # Homebrew (and the Xcode CLT with it) is emphatically a change.
+  [[ "$MODE" == "check" ]] && { warn "Homebrew: NOT INSTALLED (run without --check to install)"; return 0; }
   log "Homebrew not found — installing it (also installs the Xcode Command Line Tools; this can take a while)"
   # NONINTERACTIVE=1 makes the installer use `sudo -n`: on a normal Mac it
   # aborts instead of prompting for the password (same bug as bootstrap.sh).
@@ -211,6 +218,12 @@ ensure_homebrew
 BREW_SOURCE_FILE="" BREW_SOURCE_LOG=""
 ensure_brew_bundle() {
   if [[ "$(uname -s)" != "Darwin" ]] || ! command -v brew >/dev/null 2>&1; then
+    return 0
+  fi
+  if [[ "$MODE" == "check" ]]; then
+    log "Brewfile status (--check: nothing is installed)"
+    brew bundle check --file=Brewfile --verbose \
+      || true   # non-zero simply means "some entries are missing"
     return 0
   fi
   # Homebrew >= 7 refuses to load formulae from third-party taps unless they
@@ -247,6 +260,10 @@ ensure_brew_bundle_intel() {
   mkdir -p "$cache"
   BREW_SOURCE_LOG="$cache/brew-source-build.log"
   fast="$(mktemp)"
+  # Must be a real path before the python split runs: it writes the deferred
+  # from-source Brewfile here, and start_brew_source_build reads it at the end
+  # of the run. It outlives this function, so it is NOT the $fast temp file.
+  BREW_SOURCE_FILE="$cache/Brewfile.from-source"
   log "Intel Mac: splitting Brewfile (bottled + casks now, from-source later)"
   if command -v python3 >/dev/null 2>&1; then
     slow_count="$(python3 - "$fast" "$BREW_SOURCE_FILE" <<'PY'
@@ -264,8 +281,8 @@ macos_tag = None
 try:
     ver = subprocess.run(["sw_vers", "-productVersion"], capture_output=True,
                          text=True).stdout.strip()
-    macos_tag = {15: "sequoia", 14: "sonoma", 13: "ventura",
-                 12: "monterey", 11: "big_sur"}.get(int(ver.split(".")[1]))
+    macos_tag = {26: "tahoe", 15: "sequoia", 14: "sonoma", 13: "ventura",
+                 12: "monterey", 11: "big_sur"}.get(int(ver.split(".")[0]))
 except Exception:
     pass
 
@@ -325,6 +342,7 @@ ensure_brew_bundle
 # see Brewfile.docker and the README.
 ensure_brew_bundle_docker() {
   (( DOCKER )) || return 0
+  [[ "$MODE" == "check" ]] && { log "--check: skipping container tier install"; return 0; }
   if [[ "$(uname -s)" != "Darwin" ]]; then
     warn "--docker is macOS-only (servers deliberately get no docker)"
     return 0
@@ -625,11 +643,14 @@ ensure_pi_agent() {
   # ~/.local/bin), so check all candidate paths.
   local rust_src=""
   local candidate
+  # The nvm path must stay UNQUOTED so the version glob expands (a quoted
+  # "*" matched nothing, which defeated the whole normalization step).
+  # shellcheck disable=SC2231
   for candidate in \
     "$HOME/.local/bin/pi" \
-    "$HOME/.nvm/versions/node/*/bin/pi" \
+    $HOME/.nvm/versions/node/*/bin/pi \
     "/usr/local/bin/pi"; do
-    # glob may expand to nothing
+    # glob may expand to nothing (stays literal) — -x filters that out
     [[ -x "$candidate" ]] || continue
     if "$candidate" --version 2>/dev/null | grep -qE '\([0-9a-f]{6,} 20[0-9]{2}-[0-9]{2}-'; then
       rust_src="$candidate"
