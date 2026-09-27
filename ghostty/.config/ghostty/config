@@ -22,5 +22,9 @@ macos-option-as-alt = true
 shell-integration = "zsh"
 shell-integration-features = "no-cursor"
 
-# Auto-attach tmux on launch
-command = "/bin/zsh -c 'tmux attach || tmux new-session'"
+# Auto-attach tmux on launch.
+# tmux is exec'd directly (no /bin/zsh wrapper): this package is stowed on
+# Linux desktops too, where /bin/zsh may not exist, and tmux spawns the
+# configured default-shell for its panes anyway.
+# `new-session -A -s <name>` = attach if it exists, create otherwise.
+command = tmux new-session -A -s main

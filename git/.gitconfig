@@ -33,7 +33,3 @@
 [credential "https://gist.github.com"]
 	helper = 
 	helper = !gh auth git-credential
-[core]
-	compression = -1
-[http]
-	postBuffer = 1048576000

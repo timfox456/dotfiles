@@ -21,9 +21,20 @@ bindkey -M vicmd '^R' history-incremental-search-backward
 
 # === Oh My Zsh ==============================================================
 export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="robbyrussell"
-plugins=(git)
-source "$ZSH/oh-my-zsh.sh"
+if [[ -r "$ZSH/oh-my-zsh.sh" ]]; then
+  ZSH_THEME="robbyrussell"
+  plugins=(git)
+  source "$ZSH/oh-my-zsh.sh"
+else
+  # No omz (Linux boxes, or a Mac before install-deps.sh ran): keep a usable
+  # prompt instead of erroring out on a missing file.
+  autoload -Uz vcs_info promptinit && promptinit
+  zstyle ':vcs_info:git:*' formats ' (%b)'
+  precmd_vcs_info() { vcs_info }
+  precmd_functions+=(precmd_vcs_info)
+  setopt prompt_subst
+  PROMPT='%F{green}%n@%m%f:%F{blue}%~%f%F{yellow}${vcs_info_msg_0_}%f$ '
+fi
 
 # === Editor =================================================================
 if [[ -n $SSH_CONNECTION ]]; then
@@ -42,7 +53,11 @@ if [[ -s "$NVM_DIR/nvm.sh" ]]; then
   . "$NVM_DIR/nvm.sh"
   [[ -s "$NVM_DIR/bash_completion" ]] && . "$NVM_DIR/bash_completion"
 elif command -v brew >/dev/null 2>&1; then
-  . "$(brew --prefix nvm)"/nvm.sh
+  # Only when nvm is actually a brew formula here — `brew --prefix nvm`
+  # happily prints a path for an uninstalled formula.
+  _brew_nvm="$(brew --prefix nvm 2>/dev/null)/nvm.sh"
+  [[ -s "$_brew_nvm" ]] && . "$_brew_nvm"
+  unset _brew_nvm
 fi
 
 # pyenv
@@ -75,12 +90,13 @@ if [[ -d "$HOME/.bun" ]]; then
   [[ -s "$BUN_INSTALL/_bun" ]] && source "$BUN_INSTALL/_bun"
 fi
 
-# opencode
+# opencode (official installer's default bin dir; `typeset -U path` above
+# keeps this idempotent)
 [[ -d "$HOME/.opencode/bin" ]] && export PATH="$HOME/.opencode/bin:$PATH"
 
-# pi coding agent — settings.json is stowed from the repo (pi package);
-# mutable state (auth.json, packages, tool bins) stays in the agent dir and
-# sessions/index stay in the state/cache dirs — none of it lands in git.
+# pi coding agent — nothing here is stowed: settings.json, auth.json,
+# packages and tool bins stay in the agent dir and sessions/index in the
+# state/cache dirs. None of it lands in git.
 export PI_CODING_AGENT_DIR="$HOME/.config/pi/agent"
 export PI_SESSIONS_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi/sessions"
 export PI_EXTENSION_INDEX_PATH="${XDG_CACHE_HOME:-$HOME/.cache}/pi/extension-index"
@@ -89,9 +105,9 @@ export PI_EXTENSION_INDEX_PATH="${XDG_CACHE_HOME:-$HOME/.cache}/pi/extension-ind
 #   pir — pi_agent_rust, always.
 #   pi  — TypeScript pi (@earendil-works/pi-coding-agent), the default; on
 #         low-tier servers (pi-rust only) it falls back to pi-rust.
-# Both honor PI_CODING_AGENT_DIR, so each build gets its own agent dir;
-# settings.json for each is stowed from the repo (pi / pi-rust packages).
-# auth.json, sessions, packages and tool bins stay per-machine — never in git.
+# Both honor PI_CODING_AGENT_DIR, so each build gets its own agent dir.
+# Nothing in those dirs is stowed: settings.json, auth.json, sessions,
+# packages and tool bins are all per-machine state — never in git.
 pir() {
   PI_CODING_AGENT_DIR="$HOME/.config/pi-rust/agent" \
     PI_SESSIONS_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi-rust/sessions" \
@@ -129,9 +145,3 @@ if [[ -f "$HOME/.config/shell/zshrc.local" ]]; then
    # shellcheck source=/dev/null
    source "$HOME/.config/shell/zshrc.local"
 fi
-
-# opencode (official installer's default: ~/.opencode/bin)
-case ":$PATH:" in
-  *":$HOME/.opencode/bin:"*) ;;
-  *) [[ -d "$HOME/.opencode/bin" ]] && export PATH="$HOME/.opencode/bin:$PATH" ;;
-esac

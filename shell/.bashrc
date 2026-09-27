@@ -38,9 +38,13 @@ parse_git_branch() {
     git branch 2>/dev/null | sed -n 's/^\* \(.*\)$/ (\1)/p'
 }
 
-case "$TERM" in
-    xterm-color|*-256color) color_prompt=yes;;
-esac
+# NOTE: match on capability, not on a hand-maintained TERM list — the old
+# `xterm-color|*-256color` list excluded xterm-ghostty, which is exactly the
+# TERM install-deps.sh vendors terminfo for.
+color_prompt=
+if [ -x /usr/bin/tput ] && tput setaf 1 >/dev/null 2>&1; then
+    color_prompt=yes
+fi
 
 if [ "$color_prompt" = yes ]; then
     PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\[\033[01;33m\]$(parse_git_branch)\[\033[00m\]\$ '
@@ -91,19 +95,31 @@ if ! shopt -oq posix; then
   fi
 fi
 
-# user-local binaries (~/.local/bin also satisfies the pi installer's PATH check)
-export PATH="$PATH:$HOME/bin:$HOME/.local/bin"
+# user-local binaries (~/.local/bin also satisfies the pi installer's PATH
+# check). Prepended so our installs beat distro copies, and guarded so
+# re-sourcing this file never duplicates entries.
+for _dir in "$HOME/.local/bin" "$HOME/bin"; do
+    case ":$PATH:" in
+        *":$_dir:"*) ;;
+        *) [ -d "$_dir" ] && PATH="$_dir:$PATH" ;;
+    esac
+done
+unset _dir
+export PATH
 
 # opencode (guarded — only where the CLI self-installed)
-[ -d "$HOME/.opencode/bin" ] && export PATH="$HOME/.opencode/bin:$PATH"
+case ":$PATH:" in
+    *":$HOME/.opencode/bin:"*) ;;
+    *) [ -d "$HOME/.opencode/bin" ] && export PATH="$HOME/.opencode/bin:$PATH" ;;
+esac
 
 # === pi agents (two builds share the `pi` name) ==============================
 #   pir — pi_agent_rust, always.
 #   pi  — TypeScript pi (@earendil-works/pi-coding-agent), the default; on
 #         low-tier servers (pi-rust only) it falls back to pi-rust.
-# Both honor PI_CODING_AGENT_DIR, so each build gets its own agent dir;
-# settings.json for each is stowed from the repo (pi / pi-rust packages).
-# auth.json, sessions, packages and tool bins stay per-machine — never in git.
+# Both honor PI_CODING_AGENT_DIR, so each build gets its own agent dir.
+# Nothing in those dirs is stowed: settings.json, auth.json, sessions,
+# packages and tool bins are all per-machine state — never in git.
 pir() {
   PI_CODING_AGENT_DIR="$HOME/.config/pi-rust/agent" \
     PI_SESSIONS_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/pi-rust/sessions" \

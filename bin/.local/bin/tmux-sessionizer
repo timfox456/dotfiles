@@ -35,14 +35,25 @@ if [[ -z "${TMUX:-}" ]] && ! tmux_running; then
   exit 0
 fi
 
+# From inside tmux we switch the current client; from a plain shell (server
+# already running, no client here) switch-client has nothing to switch and
+# errors out — attach instead.
+goto_session() {
+  if [[ -n "${TMUX:-}" ]]; then
+    tmux switch-client -t "$1"
+  else
+    tmux attach-session -t "$1"
+  fi
+}
+
 if tmux has-session -t "=$selected_name" 2>/dev/null; then
-  tmux switch-client -t "=$selected_name"
-elif tmux has-session -t "$selected_name" 2>/dev/null; then
-  tmux switch-client -t "$selected_name"
+  goto_session "=$selected_name"
 else
-  # Window 1: nvim in the project; window 2: plain shell
+  # Window 1: nvim in the project; window 2: plain shell.
+  # base-index is 1 (see tmux-common/common.conf) — name the window instead of
+  # trusting the index, so a base-index change can't select the wrong one.
   tmux new-session -ds "$selected_name" -c "$selected" -n editor "nvim"
-  tmux new-window -t "$selected_name:" -c "$selected" -n shell
-  tmux select-window -t "$selected_name:1"
-  tmux switch-client -t "$selected_name"
+  tmux new-window -t "=$selected_name:" -c "$selected" -n shell
+  tmux select-window -t "=$selected_name:editor"
+  goto_session "=$selected_name"
 fi

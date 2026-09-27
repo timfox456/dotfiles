@@ -18,16 +18,13 @@ vim.diagnostic.config({
   float = { border = "rounded", source = "if_many" },
 })
 
--- Navigate vim panes better
-vim.keymap.set("n", "<c-k>", ":wincmd k<CR>")
-vim.keymap.set("n", "<c-j>", ":wincmd j<CR>")
-vim.keymap.set("n", "<c-h>", ":wincmd h<CR>")
-vim.keymap.set("n", "<c-l>", ":wincmd l<CR>")
+-- NOTE: <C-hjkl> pane navigation lives in plugins/nvim-tmux-navigation.lua
+-- (it seamlessly crosses into tmux panes). Plain :wincmd maps here would be
+-- silently overwritten by it at plugin-config time.
 
 vim.keymap.set("n", "<leader>h", ":nohlsearch<CR>")
-vim.wo.number = true
-
-vim.wo.relativenumber = true -- relative line numbers
+vim.opt.number = true
+vim.opt.relativenumber = true -- relative line numbers (window-global default)
 
 -- yank to OS clipboard
 vim.keymap.set({ "n", "v" }, "<leader>y", '"+y')

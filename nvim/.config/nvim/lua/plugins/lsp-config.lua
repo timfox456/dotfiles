@@ -67,21 +67,41 @@ return {
 
       -- typescript-language-server (v5+) no longer falls back to the global
       -- typescript package — point tsserver.path at npm's global install.
+      -- Resolved in before_init (i.e. only when the server actually starts on
+      -- a TS/JS buffer), never at startup: `npm root -g` spawns node and cost
+      -- every nvim launch ~200ms, on every machine, TS project or not.
+      local function global_tsserver_path()
+        -- Cheap first: typescript-language-server's own prefix, no subprocess.
+        local exe = vim.fn.exepath("typescript-language-server")
+        if exe ~= "" then
+          local prefix = vim.fs.dirname(vim.fs.dirname(exe))
+          local p = prefix .. "/lib/node_modules/typescript/lib/tsserver.js"
+          if vim.uv.fs_stat(p) then
+            return p
+          end
+        end
+        -- Fall back to asking npm (subprocess — hence the lazy call site).
+        local npm_root = vim.fn.trim(vim.fn.system("npm root -g 2>/dev/null"))
+        if vim.v.shell_error == 0 and npm_root ~= "" then
+          local p = npm_root .. "/typescript/lib/tsserver.js"
+          if vim.uv.fs_stat(p) then
+            return p
+          end
+        end
+        return nil
+      end
+
       vim.lsp.config("ts_ls", {
-        init_options = {
-          tsserver = {
-            path = (function()
-              local npm_root = vim.fn.trim(vim.fn.system("npm root -g 2>/dev/null"))
-              if vim.v.shell_error == 0 and npm_root ~= "" then
-                local p = npm_root .. "/typescript/lib/tsserver.js"
-                if vim.uv.fs_stat(p) then
-                  return p
-                end
-              end
-              return nil
-            end)(),
-          },
-        },
+        before_init = function(_, config)
+          local path = global_tsserver_path()
+          if path then
+            config.init_options = vim.tbl_deep_extend(
+              "force",
+              config.init_options or {},
+              { tsserver = { path = path } }
+            )
+          end
+        end,
       })
 
       -- pyright/ts_ls are node processes (100-500MB on real projects): only
