@@ -210,6 +210,26 @@ for folded in opencode btop fastfetch; do
     mkdir -p "$folded_link"
     echo "unfolded ~/.config/$folded (was a single symlink into the repo)"
   fi
+  # Evacuate what the app wrote through the fold (opencode's npm install:
+  # node_modules, package.json, ...) to the now-real dir, so it keeps working
+  # and check_packages doesn't refuse the stow. Only git-IGNORED paths move —
+  # tracked config stays put. Runs whenever the target is a real dir, so a run
+  # that died after unfolding recovers on the next one.
+  pkg_dir="$folded/.config/$folded"
+  if [[ -d "$folded_link" && ! -L "$folded_link" ]] && \
+     git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    while IFS= read -r -d '' rel; do
+      rel="${rel%/}"
+      src="$REPO_DIR/$rel" dst="$folded_link/${rel#"$pkg_dir"/}"
+      if [[ -e "$dst" || -L "$dst" ]]; then
+        echo "WARNING: not moving $rel — $dst already exists; remove one of them" >&2
+        continue
+      fi
+      mkdir -p "$(dirname "$dst")"
+      mv "$src" "$dst"
+      echo "moved machine-local $rel -> ~${dst#"$HOME"}"
+    done < <(git -C "$REPO_DIR" ls-files -z --others --ignored --exclude-standard --directory -- "$pkg_dir")
+  fi
 done
 
 # --- package sanity guard -----------------------------------------------------
