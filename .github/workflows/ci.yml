@@ -46,11 +46,11 @@ jobs:
         run: find nvim/.config/nvim/lua -name '*.lua' -print0 | xargs -0 -n1 luac5.4 -p
 
       - name: JSON validity
+        # Every tracked *.json — a hardcoded list went stale when karabiner.json
+        # moved. (.jsonc files like fastfetch's allow comments; not checked.)
         run: |
-          for f in opencode/.config/opencode/opencode.json \
-                   nvim/.config/nvim/lazy-lock.json \
-                   karabiner/karabiner.json; do
-            python3 -m json.tool "$f" > /dev/null
+          git ls-files -z '*.json' | while IFS= read -r -d '' f; do
+            python3 -m json.tool "$f" > /dev/null || { echo "invalid JSON: $f"; exit 1; }
           done
 
   hygiene:
