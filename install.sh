@@ -25,10 +25,18 @@ usage() {
   exit 0
 }
 
+# Pre-creating a target dir is what forces stow to make FILE-level links
+# inside it. Without it stow "tree-folds": ~/.config/btop becomes one symlink
+# to btop/.config/btop IN THIS REPO, and the app then writes its runtime state
+# into the working tree (btop rewrites btop.conf on every exit; opencode keeps
+# state next to its config). Every stowed ~/.config/<app> dir belongs here —
+# the sole deliberate exception is ~/.config/nvim, which IS a folded symlink
+# (lazy writes to the state dir, never to the config dir).
 mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" \
          "$HOME/.config/zerostack" "$HOME/.config/git" "$HOME/.config/shell" \
          "$HOME/.config/aerc" "$HOME/.local/bin" "$HOME/.local/share/aerc" \
          "$HOME/.local/state/nvim" \
+         "$HOME/.config/opencode" "$HOME/.config/btop" "$HOME/.config/fastfetch" \
          "$HOME/.config/latexmk" "$HOME/texmf/tex/latex/tim"
 
 # Guardrail: the secrets file must never be group/world readable.
@@ -188,6 +196,19 @@ for stale in "$HOME/.config/pi/agent/settings.json" \
      [[ "$(readlink "$stale")" == *"$(basename "$REPO_DIR")"/* ]]; then
     rm -f "$stale"
     echo "removed dangling link from the old layout: $stale"
+  fi
+done
+
+# Machines set up before the mkdir list above gained these entries already
+# have the folded symlink — and anything the app wrote through it is sitting in
+# the repo. Unfold it so the restow below makes file-level links instead.
+for folded in opencode btop fastfetch; do
+  folded_link="$HOME/.config/$folded"
+  if [[ -L "$folded_link" && "$(readlink "$folded_link")" == *"$(basename "$REPO_DIR")"/* ]]; then
+    stow -D -t "$HOME" "$folded" 2>/dev/null || true
+    rm -f "$folded_link"
+    mkdir -p "$folded_link"
+    echo "unfolded ~/.config/$folded (was a single symlink into the repo)"
   fi
 done
 

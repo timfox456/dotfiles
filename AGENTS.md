@@ -118,6 +118,15 @@ shellcheck install.sh install-deps.sh install-tex.sh bootstrap.sh bin/.local/bin
 actionlint
 find nvim/.config/nvim/lua -name '*.lua' -print0 | xargs -0 -n1 luac -p
 ./install-deps.sh --check          # version report, changes nothing
+
+# Clean-machine stow test — run this before claiming install.sh is verified.
+# Stowing into a FRESH $HOME is not the same as restowing into yours: dirs you
+# happen to already have get file-level links, while a clean machine tree-folds
+# the whole dir into one symlink into this repo. That difference is invisible
+# locally and is what the CI "Verify stow links" step catches.
+rm -rf /tmp/cleanhome && mkdir -p /tmp/cleanhome
+HOME=/tmp/cleanhome ./install.sh --server
+test -L /tmp/cleanhome/.config/btop/btop.conf   # file link, not a folded dir
 tmux -L test -f tmux/.config/tmux/tmux.conf new-session -d   # then kill-server
 ```
 CI runs all of this plus a full dogfood on clean ubuntu + macOS runners.

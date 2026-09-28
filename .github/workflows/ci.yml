@@ -115,6 +115,9 @@ jobs:
           test -f "$HOME/.config/zerostack/config.toml"
           test -L "$HOME/.config/ghostty/config"
           test -L "$HOME/.config/opencode/opencode.json"
+          # file-level links, NOT a folded ~/.config/<app> symlink into the repo
+          test -L "$HOME/.config/btop/btop.conf"
+          test -L "$HOME/.config/fastfetch/config.jsonc"
           test -L "$HOME/.config/git/ignore"
           test -L "$HOME/.gitconfig"
           test -L "$HOME/.config/latexmk/latexmkrc"
