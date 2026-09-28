@@ -43,7 +43,8 @@ desktops (i3)** and **Ubuntu servers**.
   `bash -n` and `shellcheck`; nvim lua must pass `luac -p`. CI (`.github/
   workflows/ci.yml`) enforces this on ubuntu + macOS runners with a full
   dogfood — keep it green.
-- New tooling for macOS goes in the `Brewfile`; Linux apt packages go in
+- macOS system preferences go in `macos-defaults.sh` (opt-in, idempotent —
+  never called from install.sh). New tooling for macOS goes in the `Brewfile`; Linux apt packages go in
   `TOOL_DEPS` in `install-deps.sh`.
 - **Everything third-party is pinned.** nvim plugins via
   `nvim/.config/nvim/lazy-lock.json`; nvim/tmux/nvm/uv via the version vars
@@ -116,10 +117,10 @@ Order matters — do NOT start with git surgery:
 ## Testing
 
 ```bash
-bash -n install.sh install-deps.sh install-tex.sh bootstrap.sh bin/.local/bin/*
+bash -n install.sh install-deps.sh install-tex.sh bootstrap.sh macos-defaults.sh bin/.local/bin/*
 bash -n shell/.bash_aliases shell/.bashrc
 zsh -n shell/.zshrc
-shellcheck install.sh install-deps.sh install-tex.sh bootstrap.sh bin/.local/bin/* shell/.bash_aliases shell/.bashrc
+shellcheck install.sh install-deps.sh install-tex.sh bootstrap.sh macos-defaults.sh bin/.local/bin/* shell/.bash_aliases shell/.bashrc
 actionlint
 find nvim/.config/nvim/lua -name '*.lua' -print0 | xargs -0 -n1 luac -p
 ./install-deps.sh --check          # version report, changes nothing

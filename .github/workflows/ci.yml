@@ -21,6 +21,7 @@ jobs:
           bash -n install.sh
           bash -n install-deps.sh
           bash -n install-tex.sh
+          bash -n macos-defaults.sh
           bash -n bootstrap.sh
           bash -n bin/.local/bin/lazy-lock-sync
           bash -n bin/.local/bin/tmux-sessionizer
@@ -32,7 +33,7 @@ jobs:
 
       - name: shellcheck
         run: |
-          shellcheck install.sh install-deps.sh install-tex.sh bootstrap.sh \
+          shellcheck install.sh install-deps.sh install-tex.sh bootstrap.sh macos-defaults.sh \
             bin/.local/bin/lazy-lock-sync bin/.local/bin/tmux-sessionizer \
             shell/.bash_aliases shell/.bashrc
 
@@ -167,6 +168,11 @@ jobs:
           test -L "$HOME/.gitconfig"
           test -L "$HOME/.config/karabiner"   # folded dir, not a file link
           python3 -m json.tool "$HOME/.config/karabiner/karabiner.json" >/dev/null
+
+      - name: macos-defaults.sh applies and is idempotent
+        run: |
+          ./macos-defaults.sh
+          ./macos-defaults.sh --check
 
       - name: tmux parse test (desktop variant)
         run: |

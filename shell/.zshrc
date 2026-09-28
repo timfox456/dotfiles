@@ -130,6 +130,26 @@ if [[ "$(uname -s)" == Darwin && -d "/opt/homebrew/opt/openjdk@17" ]]; then
   export PATH="$JAVA_HOME/bin:$PATH"
 fi
 
+# === macOS helpers ==========================================================
+if [[ "$(uname -s)" == Darwin ]]; then
+  # cd to the folder of the front-most Finder window
+  cdf() { cd "$(osascript -e 'tell app "Finder" to POSIX path of (insertion location as alias)')" || return; }
+  # Bundle ID of an app (for Karabiner/duti rules), copied to the clipboard
+  bundleid() {
+    local id
+    id="$(osascript -e "id of app \"$1\"" 2>/dev/null)" || { echo "no app named '$1'" >&2; return 1; }
+    printf '%s' "$id" | pbcopy
+    echo "$id (copied)"
+  }
+  alias cpwd="pwd | tr -d '\n' | pbcopy"
+  alias cleanupds="find . -type f -name '.DS_Store' -ls -delete"
+  # Rebuild LaunchServices — fixes duplicate entries in "Open With"
+  alias lscleanup="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -kill -r -domain local -domain system -domain user && killall Finder"
+  alias afk="open -a ScreenSaverEngine"
+  alias cpu="sysctl -n machdep.cpu.brand_string"
+  alias ram="top -l 1 -s 0 | grep PhysMem"
+fi
+
 # === Secrets (always last) ==================================================
 # API keys etc. — copied from shell/.config/shell/secrets.local.example.
 # Per machine, mode 600, never synced or committed.

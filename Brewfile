@@ -47,6 +47,13 @@ brew "macmon"
 
 # Apps
 cask "ghostty"
+# Nerd Fonts (nvim icons). ghostty's config uses "JetBrainsMono Nerd Font Mono".
+cask "font-hack-nerd-font"
+cask "font-jetbrains-mono-nerd-font"
+cask "obsidian"
+cask "libreoffice"
+# ChatGPT is deliberately NOT here — many corporate Macs forbid it. It's a
+# manual step on personal machines (README → Manual steps).
 # Caps Lock = Esc (tap) / Control (hold) — config in karabiner/. First launch
 # needs manual approval: System Settings → Privacy & Security (driver
 # extension) and Input Monitoring for karabiner_grabber.

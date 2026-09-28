@@ -185,6 +185,23 @@ your username, not ask for a password). On work machines the employer's key
 + host block replaces the gitlab.com one, and the email in
 `gitconfig.local` should match the account that key belongs to.
 
+### 5. ChatGPT desktop app — personal Macs only
+
+Not in the Brewfile because many corporate machines don't allow it:
+
+```bash
+brew install --cask chatgpt
+```
+
+### 6. macOS system preferences (optional)
+
+`./macos-defaults.sh` applies a curated set of `defaults write` settings:
+fast key repeat, no smart quotes/auto-correct, Finder path/status bar,
+screenshots to `~/Screenshots`, no Dock recents or Space reordering, and more.
+It isn't run by `install.sh`. It only writes settings that differ and prints
+each change. `./macos-defaults.sh --check` reports differences without
+changing anything. Log out after the first run for key repeat to take effect.
+
 ## Ubuntu / tooling
 
 `install-deps.sh` installs and pins what the setup needs:
