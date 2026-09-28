@@ -165,6 +165,8 @@ jobs:
           test -L "$HOME/.config/nvim"
           test -L "$HOME/.config/tmux/tmux.conf"
           test -L "$HOME/.gitconfig"
+          test -L "$HOME/.config/karabiner"   # folded dir, not a file link
+          python3 -m json.tool "$HOME/.config/karabiner/karabiner.json" >/dev/null
 
       - name: tmux parse test (desktop variant)
         run: |

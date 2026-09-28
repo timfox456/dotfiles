@@ -30,8 +30,10 @@ usage() {
 # to btop/.config/btop IN THIS REPO, and the app then writes its runtime state
 # into the working tree (btop rewrites btop.conf on every exit; opencode keeps
 # state next to its config). Every stowed ~/.config/<app> dir belongs here —
-# the sole deliberate exception is ~/.config/nvim, which IS a folded symlink
-# (lazy writes to the state dir, never to the config dir).
+# the deliberate exceptions are ~/.config/nvim (lazy writes to the state dir,
+# never to the config dir) and ~/.config/karabiner (Karabiner only notices
+# config changes when the DIRECTORY is the symlink, not karabiner.json — its
+# automatic_backups/ are gitignored), which are folded symlinks.
 mkdir -p "$HOME/.config/tmux" "$HOME/.config/ghostty" \
          "$HOME/.config/zerostack" "$HOME/.config/git" "$HOME/.config/shell" \
          "$HOME/.config/aerc" "$HOME/.local/bin" "$HOME/.local/share/aerc" \
@@ -167,6 +169,7 @@ if [[ "$VARIANT" == "server" ]]; then
 else
   STOW_PKGS+=(tmux)
   [[ "$(uname -s)" == "Linux" ]] && STOW_PKGS+=(i3)
+  [[ "$(uname -s)" == "Darwin" ]] && STOW_PKGS+=(karabiner)
 fi
 
 # Tier downgrade: stow --restow never touches unlisted packages, so dropping
@@ -271,10 +274,26 @@ check_packages() {
   return 0
 }
 check_packages "${STOW_PKGS[@]}"
+# Karabiner writes a real ~/.config/karabiner on first launch. Left in place,
+# stow would link karabiner.json INSIDE it — a file link Karabiner never
+# watches. Move it aside so stow folds the whole dir (see the mkdir note).
+KARABINER_DIR="$HOME/.config/karabiner"
+if [[ " ${STOW_PKGS[*]} " == *" karabiner "* && -d "$KARABINER_DIR" && ! -L "$KARABINER_DIR" ]]; then
+  bak="$KARABINER_DIR.bak.$(date +%Y%m%d%H%M%S)"
+  mv "$KARABINER_DIR" "$bak"
+  echo "backed up: $KARABINER_DIR -> $bak (replaced by the repo's karabiner config)"
+fi
 
 resolve_stow_conflicts "${STOW_PKGS[@]}"
 stow --restow -t "$HOME" "${STOW_PKGS[@]}"
 echo "Linked (${VARIANT}, ${TIER}): ${STOW_PKGS[*]}"
+
+# Karabiner only starts watching a moved/relinked config after its console
+# user server restarts. No-op (and harmless) when Karabiner isn't running yet.
+if [[ -L "$KARABINER_DIR" ]]; then
+  launchctl kickstart -k "gui/$(id -u)/org.pqrs.service.agent.Karabiner-Console-User-Server" \
+    >/dev/null 2>&1 || true
+fi
 
 # Informational: an existing opencode install on a downgraded/low-tier machine
 # is never deleted automatically — remove it manually if desired.

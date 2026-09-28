@@ -47,6 +47,14 @@ stage then installs `git` and everything else.
   session from `~/timfox456` (override: `PROJECTS_DIR`). Script lives in
   `bin/.local/bin/`.
 - `ghostty/` — auto-attaches tmux, Catppuccin Mocha theme.
+- `karabiner/` (macOS only) — Caps Lock is Esc when tapped, Control when
+  held. Karabiner-Elements comes from the Brewfile. `~/.config/karabiner` is
+  a **folded symlink** into the repo, because Karabiner only notices
+  config changes when the directory itself is the link. So edits made in
+  Karabiner's GUI show up in `git diff` (review before committing); its
+  `automatic_backups/` are gitignored. First launch needs manual approval in
+  System Settings → Privacy & Security (driver extension) and Input
+  Monitoring.
 - `opencode/` — opencode Go/Zen config. Auth keys are per-machine in
   `~/.local/share/opencode/auth.json` (`opencode auth login`). Linked only
   on the **high tier**.

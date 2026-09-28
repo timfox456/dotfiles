@@ -47,3 +47,7 @@ brew "macmon"
 
 # Apps
 cask "ghostty"
+# Caps Lock = Esc (tap) / Control (hold) — config in karabiner/. First launch
+# needs manual approval: System Settings → Privacy & Security (driver
+# extension) and Input Monitoring for karabiner_grabber.
+cask "karabiner-elements"

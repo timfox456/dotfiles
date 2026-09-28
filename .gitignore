@@ -27,6 +27,9 @@ zshrc.local
 bashrc.local
 settings.local.json
 tool-output-artifacts/
+# ~/.config/karabiner is a folded symlink into karabiner/ (Karabiner requires
+# it), so its automatic backups land in the working tree.
+automatic_backups/
 node_modules/
 .venv/
 __pycache__/

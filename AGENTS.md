@@ -22,6 +22,11 @@ desktops (i3)** and **Ubuntu servers**.
   `--server` = headless. `i3` stows only on Linux desktops. Tiers:
   `--low`/`--high` (or < 2GB RAM autodetect on Linux servers) gate
   `opencode/` — everything else is stowed on every machine.
+- `~/.config/karabiner` (macOS only) is a deliberately FOLDED symlink —
+  Karabiner does not watch a symlinked `karabiner.json`, only a symlinked
+  directory. Do not add it to install.sh's pre-created dirs list. Its
+  `automatic_backups/` land in the working tree and are gitignored; GUI edits
+  show up as diffs of `karabiner.json`.
 - `tmux/` and `tmux-server/` both want `~/.config/tmux/tmux.conf` — only one
   may be stowed. Shared settings live in `tmux-common/`.
 - The two pi builds (TypeScript pi, pi_agent_rust) both read
