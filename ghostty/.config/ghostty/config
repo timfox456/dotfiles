@@ -18,8 +18,7 @@ theme = "Catppuccin Mocha"
 # macOS: send Option as a real Alt modifier (M-hjkl resize, M-s sessionizer)
 macos-option-as-alt = true
 
-# Shell integration
-shell-integration = "zsh"
+# Shell integration — auto-detect (don't hardcode zsh; Linux servers may only have bash)
 shell-integration-features = "no-cursor"
 
 # Auto-attach tmux on launch.
