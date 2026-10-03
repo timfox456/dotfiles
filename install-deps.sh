@@ -34,6 +34,7 @@ NVM_VERSION="${NVM_VERSION:-v0.40.7}"
 UV_VERSION="${UV_VERSION:-0.12.7}"
 KEYD_VERSION="${KEYD_VERSION:-2.6.0}"
 KEYD="${KEYD:-auto}"
+GHOSTTY_VERSION="${GHOSTTY_VERSION:-1.3.1}"
 MIN_TS_CLI_VERSION="${MIN_TS_CLI_VERSION:-0.24.0}"
 MIN_NVIM_VERSION="${MIN_NVIM_VERSION:-0.11.0}"   # vim.lsp.config / vim.lsp.enable era
 MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs >= 3.3
@@ -454,6 +455,11 @@ if [[ "$MODE" == "check" ]]; then
     else
       log "keyd: not installed (desktops only; pin ${KEYD_VERSION})"
     fi
+    if command -v ghostty >/dev/null 2>&1; then
+      log "ghostty: $(ghostty --version 2>/dev/null | head -n1) (pin ${GHOSTTY_VERSION})"
+    else
+      log "ghostty: not installed (desktops only; pin ${GHOSTTY_VERSION})"
+    fi
   fi
   exit 0
 fi
@@ -750,6 +756,44 @@ ensure_keyd() {
   fi
 }
 ensure_keyd
+
+# --- ghostty: GPU-accelerated terminal (Linux desktops only) -----------------
+# macOS: handled by Brewfile. Linux servers: don't need a GUI terminal.
+# Install priority: apt (Ubuntu 26.04+, Debian trixie+), community .deb
+# (mkasberg/ghostty-ubuntu), snap (any distro with snapd).
+ensure_ghostty() {
+  [[ "$(uname -s)" == "Linux" ]] || return 0
+  [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]] || return 0
+
+  if command -v ghostty >/dev/null 2>&1; then
+    log "ghostty: $(ghostty --version 2>/dev/null | head -n1)"
+    return 0
+  fi
+
+  # 1) Try apt (Ubuntu 26.04+, Debian trixie+)
+  if apt-cache show ghostty >/dev/null 2>&1; then
+    log "installing ghostty via apt"
+    ensure_apt_packages ghostty && return 0
+  fi
+
+  # 2) Try community .deb (Ubuntu 24.04/26.04, Debian trixie/forky, and derivatives)
+  log "trying community .deb from mkasberg/ghostty-ubuntu"
+  if curl -fsSL https://raw.githubusercontent.com/mkasberg/ghostty-ubuntu/HEAD/install.sh | bash; then
+    log "ghostty: $(ghostty --version 2>/dev/null | head -n1)"
+    return 0
+  fi
+  warn "community .deb install failed or unsupported distro"
+
+  # 3) Try snap (works on any distro with snapd)
+  if command -v snap >/dev/null 2>&1; then
+    log "installing ghostty via snap"
+    $SUDO snap install ghostty --classic 2>&1 && return 0
+    warn "snap install failed"
+  fi
+
+  warn "ghostty: no install method available — install manually or build from source"
+}
+ensure_ghostty
 
 # --- zerostack (tiny Rust coding agent — fits 1GB instances) -----------------
 # Official install script (prebuilt binary, near-instant even on small vCPUs).
