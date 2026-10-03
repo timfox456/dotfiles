@@ -55,6 +55,23 @@ stage then installs `git` and everything else.
   `automatic_backups/` are gitignored. First launch needs manual approval in
   System Settings → Privacy & Security (driver extension) and Input
   Monitoring.
+- `keyd/` + `etc/keyd/` (Linux desktops only) — the Linux counterpart of
+  `karabiner/`, Omarchy-style: Super works like Cmd (Super+C/V/X/Z/A/S/F/T/W/
+  N/Q/R/L, Super+arrows for line/document start/end) and Caps Lock is Esc on
+  tap, Control on hold. i3's `$mod` is Alt, so Super is free for this.
+  Two halves:
+  - `etc/keyd/default.conf` — system-wide: Super+key → Ctrl+key. **Not
+    stowed** (keyd is a root daemon); `install-deps.sh` builds the pinned
+    keyd (`KEYD_VERSION`) and copies this file to `/etc/keyd/`. After
+    editing it: `sudo install -m644 etc/keyd/default.conf /etc/keyd/ && sudo keyd reload`.
+  - `keyd/.config/keyd/app.conf` — stowed; per-window overrides applied by
+    `keyd-application-mapper` (started from the i3 config). In terminals
+    (Ghostty, kitty, Alacritty, WezTerm, GNOME Terminal, Konsole, xfce4,
+    Tilix) Super+C/V/T/W/N/F/A/Q send Ctrl+**Shift**+key, and Super+Z/X/S/R/L/
+    O/P are disabled so they never reach the shell as C-z, C-s, etc. Find a
+    window's class with `keyd-application-mapper -v`.
+  `install-deps.sh` adds you to group `keyd` (log out and back in once).
+  Locked out by a bad config? Backspace+Escape+Enter kills keyd.
 - `opencode/` — opencode Go/Zen config. Auth keys are per-machine in
   `~/.local/share/opencode/auth.json` (`opencode auth login`). Linked only
   on the **high tier**.

@@ -168,7 +168,13 @@ if [[ "$VARIANT" == "server" ]]; then
   STOW_PKGS+=(tmux-server)
 else
   STOW_PKGS+=(tmux)
-  [[ "$(uname -s)" == "Linux" ]] && STOW_PKGS+=(i3)
+  # keyd: only app.conf is stowed. keyd-application-mapper -d writes app.log
+  # next to it, so the dir is pre-created (file link, not a repo fold). The
+  # system half (/etc/keyd/default.conf) is copied by install-deps.sh.
+  if [[ "$(uname -s)" == "Linux" ]]; then
+    STOW_PKGS+=(i3 keyd)
+    mkdir -p "$HOME/.config/keyd"
+  fi
   [[ "$(uname -s)" == "Darwin" ]] && STOW_PKGS+=(karabiner)
 fi
 

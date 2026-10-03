@@ -27,6 +27,12 @@ desktops (i3)** and **Ubuntu servers**.
   directory. Do not add it to install.sh's pre-created dirs list. Its
   `automatic_backups/` land in the working tree and are gitignored; GUI edits
   show up as diffs of `karabiner.json`.
+- keyd (Linux desktops) is split: `etc/keyd/default.conf` is system config
+  that `install-deps.sh` COPIES to `/etc/keyd/` with sudo — `etc/` is not a
+  stow package, never add it to `STOW_PKGS`. Only `keyd/.config/keyd/
+  app.conf` is stowed (with i3, Linux desktops only). Any key added to
+  `[meta]` in default.conf must also get a terminal override in every
+  terminal section of app.conf, or terminals receive the raw Ctrl+key.
 - `tmux/` and `tmux-server/` both want `~/.config/tmux/tmux.conf` — only one
   may be stowed. Shared settings live in `tmux-common/`.
 - The two pi builds (TypeScript pi, pi_agent_rust) both read

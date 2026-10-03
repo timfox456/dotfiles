@@ -18,6 +18,10 @@
 # Pinned versions (override via env):
 #   NVIM_VERSION=0.12.4 ./install-deps.sh
 #   TMUX_VERSION=3.7c ./install-deps.sh
+#
+# keyd (Mac-style Super+C/V on Linux desktops) is installed only on Linux with
+# a graphical session (DISPLAY/WAYLAND_DISPLAY). KEYD=1 forces it (e.g. over
+# ssh), KEYD=0 skips it.
 set -euo pipefail
 
 # Brewfile, Brewfile.docker and terminfo/ are read by relative path — this
@@ -28,6 +32,8 @@ NVIM_VERSION="${NVIM_VERSION:-0.12.4}"
 TMUX_VERSION="${TMUX_VERSION:-3.7c}"
 NVM_VERSION="${NVM_VERSION:-v0.40.7}"
 UV_VERSION="${UV_VERSION:-0.12.7}"
+KEYD_VERSION="${KEYD_VERSION:-2.6.0}"
+KEYD="${KEYD:-auto}"
 MIN_TS_CLI_VERSION="${MIN_TS_CLI_VERSION:-0.24.0}"
 MIN_NVIM_VERSION="${MIN_NVIM_VERSION:-0.11.0}"   # vim.lsp.config / vim.lsp.enable era
 MIN_TMUX_VERSION="${MIN_TMUX_VERSION:-3.4}"      # set-clipboard (OSC 52) needs >= 3.3
@@ -442,6 +448,13 @@ if [[ "$MODE" == "check" ]]; then
       log "tool deps (${TOOL_DEPS[*]}): OK"
     fi
   fi
+  if [[ "$(uname -s)" == "Linux" ]]; then
+    if command -v keyd >/dev/null 2>&1; then
+      log "keyd: $(keyd --version 2>&1 | head -n1) (pin ${KEYD_VERSION})"
+    else
+      log "keyd: not installed (desktops only; pin ${KEYD_VERSION})"
+    fi
+  fi
   exit 0
 fi
 
@@ -665,6 +678,78 @@ ensure_ghostty_terminfo() {
   fi
 }
 ensure_ghostty_terminfo
+
+# --- keyd: Mac-style Super shortcuts (Linux desktops only) ----------------------
+# keyd is a root daemon that remaps at the evdev level, so it works in every
+# app and under X11 or Wayland. Built from the pinned release tag (Ubuntu 24.04
+# has no package). Its config is system-wide and NOT stowed: etc/keyd/
+# default.conf is copied to /etc/keyd/. The per-window half (~/.config/keyd/
+# app.conf, run by keyd-application-mapper from the i3 config) is stowed by
+# install.sh as the keyd package.
+ensure_keyd() {
+  [[ "$(uname -s)" == "Linux" ]] || return 0
+  case "$KEYD" in
+    0) return 0 ;;
+    1) ;;
+    *) [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]] || return 0 ;;
+  esac
+  if [[ $EUID -ne 0 && -z "$SUDO" ]]; then
+    warn "keyd needs root (system daemon + /etc/keyd) — skipped in --user mode"
+    return 0
+  fi
+  # python3-xlib: keyd-application-mapper's X11 backend (i3)
+  ensure_apt_packages python3-xlib
+
+  local cur built=0
+  cur="$(keyd --version 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n1 || true)"
+  if (( FORCE )) || [[ -z "$cur" ]] || ! ver_ge "$cur" "$KEYD_VERSION"; then
+    [[ -n "$cur" ]] && remove_apt_package keyd
+    log "building keyd ${KEYD_VERSION} -> /usr/local"
+    curl -fsSL -o "$TMPDIR_BUILD/keyd.tar.gz" \
+      "https://github.com/rvaiya/keyd/archive/refs/tags/v${KEYD_VERSION}.tar.gz"
+    tar -C "$TMPDIR_BUILD" -xzf "$TMPDIR_BUILD/keyd.tar.gz"
+    (
+      cd "$TMPDIR_BUILD/keyd-${KEYD_VERSION}"
+      make -j"$(nproc)"
+      $SUDO make install PREFIX=/usr/local
+    )
+    built=1
+  else
+    log "keyd ${cur}: OK (>= ${KEYD_VERSION})"
+  fi
+
+  # Never clobber a hand-written config silently: anything that isn't
+  # already ours is kept aside (a *.bak.* name, so keyd won't load it).
+  local conf=/etc/keyd/default.conf changed=0
+  if ! cmp -s etc/keyd/default.conf "$conf"; then
+    if [[ -f "$conf" ]]; then
+      $SUDO cp "$conf" "$conf.bak.$(date +%Y%m%d%H%M%S)"
+      log "backed up existing $conf"
+    fi
+    $SUDO install -Dm644 etc/keyd/default.conf "$conf"
+    log "installed $conf"
+    changed=1
+  fi
+
+  if [[ -d /run/systemd/system ]]; then
+    (( built )) && $SUDO systemctl daemon-reload
+    $SUDO systemctl enable --now keyd
+    if (( built )); then
+      $SUDO systemctl restart keyd
+    elif (( changed )); then
+      $SUDO keyd reload || warn "keyd reload failed — check: sudo journalctl -u keyd"
+    fi
+  else
+    warn "no systemd — start keyd from your init system (config: $conf)"
+  fi
+
+  # keyd-application-mapper talks to /var/run/keyd.socket, group keyd only.
+  if [[ -n "${USER:-}" && $EUID -ne 0 ]] && ! id -nG "$USER" | tr ' ' '\n' | grep -qx keyd; then
+    $SUDO usermod -aG keyd "$USER"
+    warn "added $USER to group keyd — log out and back in for keyd-application-mapper to work"
+  fi
+}
+ensure_keyd
 
 # --- zerostack (tiny Rust coding agent — fits 1GB instances) -----------------
 # Official install script (prebuilt binary, near-instant even on small vCPUs).
