@@ -478,6 +478,56 @@ if [[ "$(uname -s)" != "Darwin" ]] && command -v fdfind >/dev/null 2>&1 && ! com
   log "symlinked fdfind -> ~/.local/bin/fd"
 fi
 
+# --- fastfetch (system info tool) -------------------------------------------
+# In apt on trixie+; bookworm needs the GitHub release .deb.
+ensure_fastfetch() {
+  command -v fastfetch >/dev/null 2>&1 && return 0
+  [[ "$(uname -s)" == "Darwin" ]] && return 0   # Brewfile
+  local arch version deb_url
+  case "$(uname -m)" in
+    x86_64) arch="amd64" ;;
+    aarch64|arm64) arch="aarch64" ;;
+    *) warn "fastfetch: unsupported arch $(uname -m)"; return 0 ;;
+  esac
+  version="$(curl -sS "https://api.github.com/repos/fastfetch-cli/fastfetch/releases/latest" \
+    | grep -oE '"tag_name": *"[^"]*"' | head -n1 | cut -d '"' -f4 || true)"
+  [[ -z "$version" ]] && { warn "could not determine fastfetch latest version"; return 0; }
+  deb_url="https://github.com/fastfetch-cli/fastfetch/releases/download/${version}/fastfetch-linux-${arch}.deb"
+  log "installing fastfetch ${version} from GitHub release -> ${PREFIX}"
+  curl -fsSL -o "$TMPDIR_BUILD/fastfetch.deb" "$deb_url"
+  $SUDO dpkg -i "$TMPDIR_BUILD/fastfetch.deb" \
+    || warn "fastfetch .deb install failed — install manually"
+  if command -v fastfetch >/dev/null 2>&1; then
+    log "fastfetch: $(fastfetch --version 2>&1 | head -n1)"
+  fi
+}
+ensure_fastfetch
+
+# --- glab (GitLab CLI) ------------------------------------------------------
+# In apt on trixie+ and bookworm-backports; fallback to GitHub release .deb.
+ensure_glab() {
+  command -v glab >/dev/null 2>&1 && return 0
+  [[ "$(uname -s)" == "Darwin" ]] && return 0   # Brewfile
+  local arch version deb_url
+  case "$(uname -m)" in
+    x86_64) arch="amd64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *) warn "glab: unsupported arch $(uname -m)"; return 0 ;;
+  esac
+  version="$(curl -sS "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli/releases" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0]['tag_name'].lstrip('v'))" 2>/dev/null || true)"
+  [[ -z "$version" ]] && { warn "could not determine glab latest version"; return 0; }
+  deb_url="https://gitlab.com/gitlab-org/cli/-/releases/v${version}/downloads/glab_${version}_linux_${arch}.deb"
+  log "installing glab ${version} from GitLab release -> ${PREFIX}"
+  curl -fsSL -o "$TMPDIR_BUILD/glab.deb" "$deb_url"
+  $SUDO dpkg -i "$TMPDIR_BUILD/glab.deb" \
+    || warn "glab .deb install failed — install manually"
+  if command -v glab >/dev/null 2>&1; then
+    log "glab: $(glab --version 2>&1 | head -n1)"
+  fi
+}
+ensure_glab
+
 # --- tree-sitter CLI (required by nvim-treesitter main to compile parsers) ---
 # Linux: official release binary. macOS: brew formula `tree-sitter-cli`
 # (NOT `tree-sitter`, which is only the parser library).
