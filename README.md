@@ -222,13 +222,11 @@ changing anything. Log out after the first run for key repeat to take effect.
 ### 7. Xcode, Apple bloat, Apple Intelligence
 
 The Brewfile installs full **Xcode** from the App Store through `mas`, so sign
-in to the App Store first (CI skips it). Afterwards `install-deps.sh` reminds
-you to select it and accept the license:
-
-```bash
-sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-sudo xcodebuild -license accept && xcodebuild -runFirstLaunch
-```
+in to the App Store first (CI skips it). `install-deps.sh` then makes it the
+active developer directory (`xcode-select -s`), accepts the license
+(`xcodebuild -license accept`) and installs the first-launch packages
+(`xcodebuild -runFirstLaunch`). Each step needs sudo and runs only if it
+hasn't been done yet, so reruns don't prompt.
 
 `install-deps.sh` deletes iMovie, GarageBand, Keynote, Pages and Numbers on
 every Mac, along with GarageBand's multi-GB sound library (Apple Loops,

@@ -391,18 +391,36 @@ PY
 }
 ensure_brew_bundle
 
-# Full Xcode (Brewfile → mas) is useless until it is the active developer dir
-# and its license is accepted — both need sudo, so only remind, never run.
-check_xcode_selected() {
+# Full Xcode (Brewfile → mas) is useless until it is the active developer
+# dir, its license is accepted and its first-launch packages are installed.
+# Each step is checked first, so sudo is only asked for on the run that
+# actually needs it; --check only reports.
+ensure_xcode_ready() {
   [[ "$(uname -s)" == "Darwin" && -d /Applications/Xcode.app ]] || return 0
   local dev
   dev="$(xcode-select -p 2>/dev/null || true)"
-  [[ "$dev" == /Applications/Xcode.app/* ]] && return 0
-  warn "Xcode is installed but not selected (xcode-select -p: ${dev:-unset}). Run:"
-  echo "      sudo xcode-select -s /Applications/Xcode.app/Contents/Developer" >&2
-  echo "      sudo xcodebuild -license accept && xcodebuild -runFirstLaunch" >&2
+  if [[ "$dev" != /Applications/Xcode.app/* ]]; then
+    if [[ "$MODE" == "check" ]]; then
+      warn "Xcode installed but not selected (xcode-select -p: ${dev:-unset}) — will be selected"
+    else
+      log "selecting Xcode as the active developer directory"
+      sudo xcode-select -s /Applications/Xcode.app/Contents/Developer \
+        || { warn "xcode-select failed — run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"; return 0; }
+    fi
+  fi
+  [[ "$MODE" == "check" ]] && return 0
+  if ! xcodebuild -license check >/dev/null 2>&1; then
+    log "accepting the Xcode license"
+    sudo xcodebuild -license accept \
+      || warn "could not accept the Xcode license — run: sudo xcodebuild -license accept"
+  fi
+  if ! xcodebuild -checkFirstLaunchStatus >/dev/null 2>&1; then
+    log "installing Xcode first-launch packages"
+    sudo xcodebuild -runFirstLaunch \
+      || warn "xcodebuild -runFirstLaunch failed — run it by hand"
+  fi
 }
-check_xcode_selected
+ensure_xcode_ready
 
 # None of our Macs use iMovie, GarageBand (+ its multi-GB sound library) or
 # iWork, so they are deleted on every run; once gone, reruns are a no-op and

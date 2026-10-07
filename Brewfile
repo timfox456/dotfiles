@@ -54,9 +54,8 @@ tap "omlahore/tap"
 brew "omlahore/tap/removemacai" if Hardware::CPU.arm?
 
 # Full Xcode (not just the Command Line Tools) from the App Store via mas.
-# Needs an App Store sign-in and ~15 GB, so CI skips it. After the first
-# install: `sudo xcode-select -s /Applications/Xcode.app && sudo xcodebuild
-# -license accept` (install-deps.sh reminds you).
+# Needs an App Store sign-in and ~15 GB, so CI skips it. install-deps.sh
+# then selects it, accepts the license and runs -runFirstLaunch (sudo).
 brew "mas"
 mas "Xcode", id: 497799835 unless ENV["CI"]
 
