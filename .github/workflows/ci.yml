@@ -22,6 +22,7 @@ jobs:
           bash -n install-deps.sh
           bash -n install-tex.sh
           bash -n macos-defaults.sh
+          bash -n macos-remove-apps.sh
           bash -n bootstrap.sh
           bash -n bin/.local/bin/lazy-lock-sync
           bash -n bin/.local/bin/tmux-sessionizer
@@ -33,7 +34,7 @@ jobs:
 
       - name: shellcheck
         run: |
-          shellcheck install.sh install-deps.sh install-tex.sh bootstrap.sh macos-defaults.sh \
+          shellcheck install.sh install-deps.sh install-tex.sh bootstrap.sh macos-defaults.sh macos-remove-apps.sh \
             bin/.local/bin/lazy-lock-sync bin/.local/bin/tmux-sessionizer \
             shell/.bash_aliases shell/.bashrc
 

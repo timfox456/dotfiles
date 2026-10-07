@@ -219,6 +219,37 @@ It isn't run by `install.sh`. It only writes settings that differ and prints
 each change. `./macos-defaults.sh --check` reports differences without
 changing anything. Log out after the first run for key repeat to take effect.
 
+### 7. Xcode, Apple bloat, Apple Intelligence
+
+The Brewfile installs full **Xcode** from the App Store through `mas`, so sign
+in to the App Store first (CI skips it). Afterwards `install-deps.sh` reminds
+you to select it and accept the license:
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+sudo xcodebuild -license accept && xcodebuild -runFirstLaunch
+```
+
+`install-deps.sh` deletes iMovie, GarageBand, Keynote, Pages and Numbers on
+every Mac, along with GarageBand's multi-GB sound library (Apple Loops,
+instruments, impulse responses, package receipts), by running
+`./macos-remove-apps.sh --apply`. It asks for sudo only when there is
+something to delete, so reruns are silent. `install-deps.sh --check`, or the
+script run on its own without `--apply`, lists what would go and the sizes.
+It keeps your documents, and it
+keeps the shared Logic sound library when Logic Pro or MainStage is
+installed (`--include-shared` deletes that too). Apple TV sits on the sealed
+system volume and can't be removed.
+
+`install-deps.sh` also turns Apple Intelligence off and deletes its models
+with `removemacai off` (Apple Silicon, macOS 27+, from the Brewfile). The
+first run on each Mac opens System Settings: approve the RemoveMacAI profile
+there, which macOS requires you to do by hand. After that, reruns do nothing.
+It's skipped in CI and in non-interactive shells. It only touches Apple
+Intelligence; for its analytics/ads tweaks run `removemacai apply --preset
+recommended` yourself. Undo everything with `removemacai revert`. `ncdu` is the disk-usage TUI
+(`ncdu ~`, or `ncdu -x /` to stay on one volume).
+
 ## Ubuntu / tooling
 
 `install-deps.sh` installs and pins what the setup needs:
@@ -237,7 +268,7 @@ is already installed.
 
 Covers: neovim (tarball), tmux (source build), stow, tree-sitter CLI,
 typescript@5 + typescript-language-server (npm global), the base
-toolchain (`git curl wget mosh jq htop gh glab aerc lazygit fd tree unzip build-essential ruby
+toolchain (`git curl wget mosh jq htop ncdu gh glab aerc lazygit fd tree unzip build-essential ruby
 ripgrep fzf pass pandoc poppler-utils python3 python3-pip python3-venv` — macOS gets the same via
 `Brewfile`), forge CLIs (`gh glab`), cloud CLIs (`aws az gcloud` — vendor
 installers on Linux, Brewfile on macOS), plus tpm with plugins installed

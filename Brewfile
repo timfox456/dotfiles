@@ -44,6 +44,21 @@ brew "ruby"
 brew "btop"
 brew "fastfetch"
 brew "macmon"
+# Interactive disk usage TUI
+brew "ncdu"
+
+# Debloat: turns off Apple Intelligence (and deletes its models), analytics,
+# ads. Prebuilt arm64-only binary — the formula refuses Intel, so guard it.
+# install-deps.sh runs `removemacai off` (Apple Intelligence only).
+tap "omlahore/tap"
+brew "omlahore/tap/removemacai" if Hardware::CPU.arm?
+
+# Full Xcode (not just the Command Line Tools) from the App Store via mas.
+# Needs an App Store sign-in and ~15 GB, so CI skips it. After the first
+# install: `sudo xcode-select -s /Applications/Xcode.app && sudo xcodebuild
+# -license accept` (install-deps.sh reminds you).
+brew "mas"
+mas "Xcode", id: 497799835 unless ENV["CI"]
 
 # Apps
 cask "ghostty"

@@ -101,7 +101,7 @@ pin_git_ref() {
 #              symlinked to fd below); tree -> directory listing
 #   poppler-utils -> pdftotext/pdfinfo/pdffonts (macOS: brew formula poppler)
 #   pandoc -> document converter (PDF output needs a TeX engine — install-tex.sh)
-TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop btop fastfetch gh glab aerc fd-find tree pass python3 python3-pip python3-venv ruby pandoc poppler-utils)
+TOOL_DEPS=(stow curl wget git mosh unzip build-essential ripgrep fzf jq htop btop ncdu fastfetch gh glab aerc fd-find tree pass python3 python3-pip python3-venv ruby pandoc poppler-utils)
 
 MODE="install"
 PREFIX="/usr/local"
@@ -390,6 +390,66 @@ PY
   rm -f "$fast"
 }
 ensure_brew_bundle
+
+# Full Xcode (Brewfile → mas) is useless until it is the active developer dir
+# and its license is accepted — both need sudo, so only remind, never run.
+check_xcode_selected() {
+  [[ "$(uname -s)" == "Darwin" && -d /Applications/Xcode.app ]] || return 0
+  local dev
+  dev="$(xcode-select -p 2>/dev/null || true)"
+  [[ "$dev" == /Applications/Xcode.app/* ]] && return 0
+  warn "Xcode is installed but not selected (xcode-select -p: ${dev:-unset}). Run:"
+  echo "      sudo xcode-select -s /Applications/Xcode.app/Contents/Developer" >&2
+  echo "      sudo xcodebuild -license accept && xcodebuild -runFirstLaunch" >&2
+}
+check_xcode_selected
+
+# None of our Macs use iMovie, GarageBand (+ its multi-GB sound library) or
+# iWork, so they are deleted on every run; once gone, reruns are a no-op and
+# never ask for sudo. --check only lists what would go.
+remove_apple_apps() {
+  [[ "$(uname -s)" == "Darwin" ]] || return 0
+  if [[ "$MODE" == "check" ]]; then
+    log "Apple bundled apps (--check: dry run)"
+    ./macos-remove-apps.sh || true
+    return 0
+  fi
+  log "removing Apple's bundled apps (iMovie, GarageBand + sound library, iWork)"
+  ./macos-remove-apps.sh --apply \
+    || warn "macos-remove-apps.sh failed — rerun it by hand: ./macos-remove-apps.sh --apply"
+}
+remove_apple_apps
+
+# Apple Intelligence off + its models deleted, via removemacai (Brewfile,
+# Apple Silicon only). Only `off` — not the "recommended" preset, which also
+# rewrites Finder/Dock/typing settings that macos-defaults.sh owns. The first
+# run per Mac installs a configuration profile that macOS makes you approve
+# in System Settings (it waits up to 10 min), so it needs a terminal and is
+# skipped in CI. Once everything is off, reruns are an instant no-op.
+# Undo: `removemacai revert`.
+disable_apple_intelligence() {
+  [[ "$(uname -s)" == "Darwin" ]] || return 0
+  command -v removemacai >/dev/null 2>&1 || return 0
+  local major
+  major="$(sw_vers -productVersion | cut -d. -f1)"
+  if ((major < 27)); then
+    log "removemacai: skipped (supports macOS 27+, this is $(sw_vers -productVersion))"
+    return 0
+  fi
+  if [[ "$MODE" == "check" ]]; then
+    log "Apple Intelligence status (--check: nothing is changed)"
+    removemacai status || true
+    return 0
+  fi
+  if [[ -n "${CI:-}" || ! -t 0 ]]; then
+    log "removemacai: skipped (needs an interactive terminal) — run: removemacai off"
+    return 0
+  fi
+  log "turning Apple Intelligence off (approve the RemoveMacAI profile in System Settings if asked)"
+  removemacai off --yes \
+    || warn "Apple Intelligence not fully off — approve the profile in System Settings, then run: removemacai off"
+}
+disable_apple_intelligence
 
 # Opt-in container tier (macOS only): colima + docker + compose, on-demand VM.
 # Docker Desktop and default docker-on-servers are deliberately avoided —

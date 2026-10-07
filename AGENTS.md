@@ -50,8 +50,13 @@ desktops (i3)** and **Ubuntu servers**.
   workflows/ci.yml`) enforces this on ubuntu + macOS runners with a full
   dogfood — keep it green.
 - macOS system preferences go in `macos-defaults.sh` (opt-in, idempotent —
-  never called from install.sh). New tooling for macOS goes in the `Brewfile`; Linux apt packages go in
-  `TOOL_DEPS` in `install-deps.sh`.
+  never called from install.sh). Removing Apple's bundled apps (iMovie,
+  GarageBand + its sound library, iWork) is `macos-remove-apps.sh`, which
+  install-deps.sh runs with `--apply` on every Mac (dry run under
+  `--check`). It also runs `removemacai off` (Apple Intelligence only — never
+  the `recommended` preset, which would fight macos-defaults.sh over
+  Finder/Dock/typing keys). New tooling for macOS goes in the `Brewfile`;
+  Linux apt packages go in `TOOL_DEPS` in `install-deps.sh`.
 - **Everything third-party is pinned.** nvim plugins via
   `nvim/.config/nvim/lazy-lock.json`; nvim/tmux/nvm/uv via the version vars
   at the top of `install-deps.sh`; tpm, oh-my-zsh and the tmux plugins via
@@ -123,10 +128,10 @@ Order matters — do NOT start with git surgery:
 ## Testing
 
 ```bash
-bash -n install.sh install-deps.sh install-tex.sh bootstrap.sh macos-defaults.sh bin/.local/bin/*
+bash -n install.sh install-deps.sh install-tex.sh bootstrap.sh macos-defaults.sh macos-remove-apps.sh bin/.local/bin/*
 bash -n shell/.bash_aliases shell/.bashrc
 zsh -n shell/.zshrc
-shellcheck install.sh install-deps.sh install-tex.sh bootstrap.sh macos-defaults.sh bin/.local/bin/* shell/.bash_aliases shell/.bashrc
+shellcheck install.sh install-deps.sh install-tex.sh bootstrap.sh macos-defaults.sh macos-remove-apps.sh bin/.local/bin/* shell/.bash_aliases shell/.bashrc
 actionlint
 find nvim/.config/nvim/lua -name '*.lua' -print0 | xargs -0 -n1 luac -p
 ./install-deps.sh --check          # version report, changes nothing
