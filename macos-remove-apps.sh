@@ -40,6 +40,15 @@ for arg in "$@"; do
   esac
 done
 
+# Found by bundle ID (Spotlight), not just by name, so renamed copies or ones
+# in ~/Applications are caught too; the usual paths cover Spotlight being off.
+APP_IDS=(
+  com.apple.iMovieApp
+  com.apple.garageband10
+  com.apple.iWork.Keynote
+  com.apple.iWork.Pages
+  com.apple.iWork.Numbers
+)
 APPS=(
   "/Applications/iMovie.app"
   "/Applications/GarageBand.app"
@@ -47,6 +56,19 @@ APPS=(
   "/Applications/Pages.app"
   "/Applications/Numbers.app"
 )
+for id in "${APP_IDS[@]}"; do
+  while IFS= read -r app; do
+    # Only top-level bundles in /Applications or ~/Applications — never
+    # anything nested, on the system volume or elsewhere.
+    case "$app" in
+      /Applications/*/*|"$HOME"/Applications/*/*) continue ;;
+      /Applications/*.app|"$HOME"/Applications/*.app) ;;
+      *) continue ;;
+    esac
+    case " ${APPS[*]} " in *" $app "*) continue ;; esac
+    APPS+=("$app")
+  done < <(mdfind "kMDItemCFBundleIdentifier == '$id'" 2>/dev/null || true)
+done
 
 # Per-user app state (prefs, caches, sandbox containers) — no documents.
 USER_DATA=(
@@ -89,22 +111,32 @@ if ((!SHARED)); then
   done
 fi
 
-total_kb=0 found=0
+total_kb=0 found=0 failed=()
 
 # remove PATH [sudo] — print the path and size; delete it with --apply.
+# A failure is recorded, not fatal: one stubborn app must not stop the rest.
 remove() {
   local path="$1" use_sudo="${2:-}" kb
   [[ -e "$path" || -L "$path" ]] || return 0
   kb="$(du -sk "$path" 2>/dev/null | awk '{print $1}')"
   kb="${kb:-0}"
-  total_kb=$((total_kb + kb))
   found=$((found + 1))
   printf '%8s MB  %s\n' "$((kb / 1024))" "$path"
-  ((APPLY)) || return 0
+  ((APPLY)) || { total_kb=$((total_kb + kb)); return 0; }
+  # Quit it first if it is running (a running app can hold files open).
+  if [[ "$path" == *.app ]] && pgrep -qf "$path/Contents/MacOS/"; then
+    osascript -e "quit app \"$path\"" >/dev/null 2>&1 || true
+    sleep 2
+  fi
   if [[ -n "$use_sudo" ]]; then
-    sudo rm -rf -- "$path"
+    sudo rm -rf -- "$path" || true
   else
-    rm -rf -- "$path"
+    rm -rf -- "$path" || true
+  fi
+  if [[ -e "$path" || -L "$path" ]]; then
+    failed+=("$path")
+  else
+    total_kb=$((total_kb + kb))
   fi
 }
 
@@ -128,7 +160,7 @@ if ((${#receipts[@]})); then
   echo "receipts: ${#receipts[@]} package receipt(s) to forget"
   if ((APPLY)); then
     for pkg in "${receipts[@]}"; do
-      sudo pkgutil --forget "$pkg" >/dev/null
+      sudo pkgutil --forget "$pkg" >/dev/null || true
     done
   fi
 fi
@@ -140,7 +172,17 @@ fi
 if ((found == 0 && ${#receipts[@]} == 0)); then
   echo "nothing to remove"
 elif ((APPLY)); then
-  echo "removed $found item(s), $((total_kb / 1024)) MB freed"
+  echo "removed $((found - ${#failed[@]})) of $found item(s), $((total_kb / 1024)) MB freed"
 else
   echo "dry run: $found item(s), $((total_kb / 1024)) MB — rerun with --apply to delete"
+fi
+
+if ((${#failed[@]})); then
+  echo "FAILED to remove ${#failed[@]} item(s):" >&2
+  printf '  %s\n' "${failed[@]}" >&2
+  echo "If that says \"Operation not permitted\", macOS is protecting the app:" >&2
+  echo "  System Settings → Privacy & Security → App Management (and Full Disk" >&2
+  echo "  Access) → enable your terminal (Ghostty), restart it, rerun with --apply." >&2
+  echo "  Or drag the apps to the Trash in Finder." >&2
+  exit 1
 fi
