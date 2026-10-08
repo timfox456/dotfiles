@@ -48,6 +48,10 @@ APP_IDS=(
   com.apple.iWork.Keynote
   com.apple.iWork.Pages
   com.apple.iWork.Numbers
+  # Renamed "<App> Creator Studio" builds use these IDs instead.
+  com.apple.Keynote
+  com.apple.Pages
+  com.apple.Numbers
 )
 APPS=(
   "/Applications/iMovie.app"
@@ -55,6 +59,9 @@ APPS=(
   "/Applications/Keynote.app"
   "/Applications/Pages.app"
   "/Applications/Numbers.app"
+  "/Applications/Keynote Creator Studio.app"
+  "/Applications/Pages Creator Studio.app"
+  "/Applications/Numbers Creator Studio.app"
 )
 for id in "${APP_IDS[@]}"; do
   while IFS= read -r app; do
@@ -77,11 +84,17 @@ USER_DATA=(
   "$HOME/Library/Containers/com.apple.iWork.Keynote"
   "$HOME/Library/Containers/com.apple.iWork.Pages"
   "$HOME/Library/Containers/com.apple.iWork.Numbers"
+  "$HOME/Library/Containers/com.apple.Keynote"
+  "$HOME/Library/Containers/com.apple.Pages"
+  "$HOME/Library/Containers/com.apple.Numbers"
   "$HOME/Library/Application Scripts/com.apple.iMovieApp"
   "$HOME/Library/Application Scripts/com.apple.garageband10"
   "$HOME/Library/Application Scripts/com.apple.iWork.Keynote"
   "$HOME/Library/Application Scripts/com.apple.iWork.Pages"
   "$HOME/Library/Application Scripts/com.apple.iWork.Numbers"
+  "$HOME/Library/Application Scripts/com.apple.Keynote"
+  "$HOME/Library/Application Scripts/com.apple.Pages"
+  "$HOME/Library/Application Scripts/com.apple.Numbers"
   "$HOME/Library/Application Support/GarageBand"
   "$HOME/Library/Caches/com.apple.garageband10"
   "$HOME/Library/Preferences/com.apple.garageband10.plist"
@@ -118,6 +131,13 @@ total_kb=0 found=0 failed=()
 remove() {
   local path="$1" use_sudo="${2:-}" kb
   [[ -e "$path" || -L "$path" ]] || return 0
+  # A sandbox container holding nothing but containermanagerd's own metadata
+  # is an empty stub that macOS's app-data protection refuses to delete —
+  # nothing to free, so skip it rather than fail on every rerun.
+  if [[ "$path" == "$HOME/Library/Containers/"* && -z "$(find "$path" -mindepth 1 \
+        ! -name .com.apple.containermanagerd.metadata.plist -print -quit 2>/dev/null)" ]]; then
+    return 0
+  fi
   kb="$(du -sk "$path" 2>/dev/null | awk '{print $1}')"
   kb="${kb:-0}"
   found=$((found + 1))
@@ -149,12 +169,16 @@ done
 
 # Install receipts for the sound-library packages (MAContent10_*) and the
 # apps, so softwareupdate/App Store stop treating them as installed. Shared
-# content receipts stay when the shared library is kept.
+# content receipts stay when the shared library is kept. Only receipts in
+# /var/db/receipts can be forgotten: the ones macOS itself ships (some
+# MAContent10_* among them) live under SIP in /Library/Apple/System/Library/
+# Receipts, where pkgutil --forget fails with "No such file or directory".
 pkg_re='^com\.apple\.pkg\.(GarageBand|iMovie|Keynote|Pages|Numbers)'
+pkg_re="$pkg_re|^com\.apple\.cdm\.pkg\.(GarageBand|iMovie|Keynote|Pages|Numbers)_"
 ((${#SHARED_DATA[@]})) && pkg_re="$pkg_re|^com\.apple\.pkg\.MAContent10_"
 receipts=()
 while IFS= read -r pkg; do
-  receipts+=("$pkg")
+  [[ -e "/var/db/receipts/$pkg.plist" ]] && receipts+=("$pkg")
 done < <(pkgutil --pkgs 2>/dev/null | grep -E "$pkg_re" || true)
 if ((${#receipts[@]})); then
   echo "receipts: ${#receipts[@]} package receipt(s) to forget"
