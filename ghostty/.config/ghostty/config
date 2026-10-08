@@ -29,4 +29,8 @@ shell-integration-features = "no-cursor"
 # Linux desktops too, where /bin/zsh may not exist, and tmux spawns the
 # configured default-shell for its panes anyway.
 # `new-session -A -s <name>` = attach if it exists, create otherwise.
-command = tmux new-session -A -s main
+# PATH is prepended because a Dock/Finder launch on macOS inherits launchd's
+# bare PATH (/usr/bin:/bin:...) and Ghostty runs this via `bash --noprofile
+# --norc`, so Homebrew's tmux is otherwise "not found". Ghostty hands the
+# command to a shell (bash -c on macOS, sh -c on Linux), so ${PATH} expands.
+command = /usr/bin/env PATH=/opt/homebrew/bin:/usr/local/bin:${PATH} tmux new-session -A -s main
