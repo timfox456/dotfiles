@@ -148,6 +148,17 @@ cp ~/.config/shell/zshrc.local.example ~/.config/shell/zshrc.local
 # edit: uncomment and fill in the proxy lines
 ```
 
+Installers (conda, cargo, SDKs, ...) often append to `~/.zshrc` or
+`~/.bashrc`. Here those are symlinks into the repo, so the change ends up in
+the working tree, or the installer replaces the symlink with its own copy.
+`install.sh` catches both cases. It moves the added lines to `zshrc.local` /
+`bashrc.local` (lines that look like keys or tokens go to `secrets.local`),
+prints each line it moved, restores the repo file and saves the old diff as
+`~/.config/shell/*.drift.*.patch`. Edits that change or remove lines, or
+that you've staged with `git add`, are treated as your own work and left
+alone. `~/.zprofile`, `~/.zshenv`, `~/.profile` and `~/.bash_profile` aren't
+stowed, so whatever installers write there already stays on that machine.
+
 ### 2. Git identity — `~/.config/git/gitconfig.local` (work machines)
 
 ```bash

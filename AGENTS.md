@@ -33,6 +33,11 @@ desktops (i3)** and **Ubuntu servers**.
   app.conf` is stowed (with i3, Linux desktops only). Any key added to
   `[meta]` in default.conf must also get a terminal override in every
   terminal section of app.conf, or terminals receive the raw Ctrl+key.
+- `install.sh` treats UNSTAGED, pure-addition diffs to `shell/.zshrc`,
+  `.bashrc` and `.bash_aliases` as installer drift: it moves the added lines
+  to `~/.config/shell/{zshrc,bashrc}.local` and restores the file. When you
+  edit those files, commit (or at least `git add`) before running
+  install.sh.
 - `tmux/` and `tmux-server/` both want `~/.config/tmux/tmux.conf` — only one
   may be stowed. Shared settings live in `tmux-common/`.
 - The two pi builds (TypeScript pi, pi_agent_rust) both read

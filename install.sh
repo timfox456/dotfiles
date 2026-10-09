@@ -280,6 +280,105 @@ check_packages() {
   return 0
 }
 check_packages "${STOW_PKGS[@]}"
+
+# --- rc drift: installer edits to the stowed shell rc files -------------------
+# Installers (Homebrew, uv, rustup, conda, SDKs, ...) append to ~/.zshrc etc.
+# Here those are symlinks into this PUBLIC repo, so the edit lands in the
+# working tree — or the installer replaces the symlink with a real file and
+# stow then backs it up. Either way the added lines are moved to the
+# machine-local file (secret-looking ones to secrets.local) and the repo copy
+# is restored. Every move is printed, and a reverted diff is saved as a patch.
+# ~/.zprofile, ~/.zshenv, ~/.profile, ~/.bash_profile aren't stowed, so they
+# are machine-local already and stay untouched.
+RC_SECRET_RE='^[[:space:]]*(export[[:space:]]+)?[A-Za-z0-9_]*(KEY|TOKEN|SECRET|PASSWORD|PASSWD)[A-Za-z0-9_]*='
+
+# rc_append LINES_FILE LOCAL_NAME SOURCE — append new lines (dedup) to
+# ~/.config/shell/LOCAL_NAME, routing secret-looking lines to secrets.local.
+rc_append() {
+  local lines="$1" local_name="$2" src="$3" line dest n_local=0 n_secret=0
+  local stamp
+  stamp="# --- moved here from $src by install.sh, $(date +%Y-%m-%d) ---"
+  while IFS= read -r line; do
+    [[ -z "${line//[[:space:]]/}" ]] && continue
+    if [[ "$line" =~ $RC_SECRET_RE ]]; then
+      dest="$HOME/.config/shell/secrets.local"
+    else
+      dest="$HOME/.config/shell/$local_name"
+    fi
+    grep -qxF -- "$line" "$dest" 2>/dev/null && continue
+    if [[ "$dest" == *secrets.local ]]; then
+      ((n_secret)) || printf '\n%s\n' "$stamp" >> "$dest"
+      n_secret=$((n_secret + 1))
+    else
+      ((n_local)) || printf '\n%s\n' "$stamp" >> "$dest"
+      n_local=$((n_local + 1))
+      echo "    + $line"
+    fi
+    printf '%s\n' "$line" >> "$dest"
+  done < "$lines"
+  [[ -f "$HOME/.config/shell/secrets.local" ]] && chmod 600 "$HOME/.config/shell/secrets.local"
+  ((n_local)) && echo "  -> $n_local line(s) moved to ~/.config/shell/$local_name"
+  ((n_secret)) && echo "  -> $n_secret secret-looking line(s) moved to ~/.config/shell/secrets.local (not shown)"
+  return 0
+}
+
+migrate_rc_drift() {
+  local rel local_name target repo_rel tmp hist added patch total overlap
+  tmp="$(mktemp -d)"
+  for rel in .zshrc .bashrc .bash_aliases; do
+    case "$rel" in
+      .zshrc) local_name=zshrc.local ;;
+      *)      local_name=bashrc.local ;;
+    esac
+    target="$HOME/$rel" repo_rel="shell/$rel" added="$tmp/added"
+    : > "$added"
+    if [[ -L "$target" ]]; then
+      # 1. Appended through the symlink -> uncommitted diff in the repo.
+      git -C "$REPO_DIR" diff --quiet HEAD -- "$repo_rel" 2>/dev/null && continue
+      # Staged (git add) edits are deliberate repo work, never installer drift.
+      if ! git -C "$REPO_DIR" diff --cached --quiet -- "$repo_rel"; then
+        echo "note: $repo_rel has staged edits — treated as your own work, left alone"
+        continue
+      fi
+      if git -C "$REPO_DIR" diff --numstat HEAD -- "$repo_rel" | awk '{ exit !($2 > 0) }'; then
+        echo "note: $repo_rel has uncommitted edits that change or remove lines — looks"
+        echo "      like your own work, not an installer; left alone (commit or revert it)"
+        continue
+      fi
+      # Lines the committed file already has (e.g. a re-added PATH export)
+      # are dropped: the stowed rc keeps providing them.
+      git -C "$REPO_DIR" show "HEAD:$repo_rel" > "$tmp/head"
+      git -C "$REPO_DIR" diff -U0 HEAD -- "$repo_rel" \
+        | sed -n '/^+++ /d; s/^+//p' | { grep -vxF -f "$tmp/head" || true; } > "$added"
+      patch="$HOME/.config/shell/${rel#.}.drift.$(date +%Y%m%d%H%M%S).patch"
+      git -C "$REPO_DIR" diff HEAD -- "$repo_rel" > "$patch"
+      echo "rc drift: lines were appended to ~/$rel (= $repo_rel in this repo):"
+      rc_append "$added" "$local_name" "$HOME/$rel"
+      git -C "$REPO_DIR" checkout -q HEAD -- "$repo_rel"
+      echo "  -> $repo_rel restored (diff saved: $patch)"
+    elif [[ -f "$target" ]]; then
+      # 2. Symlink replaced by a real file. Only migrate when it is a copy of
+      #    ours (most lines appear in some committed version); a foreign rc
+      #    is just backed up by resolve_stow_conflicts below.
+      hist="$tmp/hist"
+      : > "$hist"
+      local rev
+      for rev in $(git -C "$REPO_DIR" log --format=%H -- "$repo_rel"); do
+        git -C "$REPO_DIR" show "$rev:$repo_rel" >> "$hist" 2>/dev/null || true
+      done
+      cat "$REPO_DIR/$repo_rel" >> "$hist"
+      total="$(grep -cv '^[[:space:]]*$' "$target" || true)"
+      overlap="$(grep -v '^[[:space:]]*$' "$target" | grep -cxF -f "$hist" || true)"
+      ((total > 0 && overlap * 2 >= total)) || continue
+      grep -vxF -f "$hist" "$target" > "$added" || true
+      [[ -s "$added" ]] || continue
+      echo "rc drift: ~/$rel is a modified copy of $repo_rel, not a symlink:"
+      rc_append "$added" "$local_name" "$HOME/$rel"
+    fi
+  done
+  rm -rf "$tmp"
+}
+migrate_rc_drift
 # Karabiner writes a real ~/.config/karabiner on first launch. Left in place,
 # stow would link karabiner.json INSIDE it — a file link Karabiner never
 # watches. Move it aside so stow folds the whole dir (see the mkdir note).
