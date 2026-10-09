@@ -1,0 +1,15 @@
+# Per-machine zsh tweaks — copy this file to ~/.config/shell/zshrc.local
+# (the copy stays on the machine; it is never synced or committed). Sourced
+# last by ~/.zshrc. bash reads ~/.config/shell/bashrc.local instead.
+# Example: corporate proxy. If the proxy URL embeds a username/password, put
+# these lines in secrets.local (mode 600) instead.
+
+# export http_proxy="http://proxy.example.com:8080"
+# export https_proxy="$http_proxy"
+# Some tools only read the uppercase names, or need local hosts exempted:
+# export HTTP_PROXY="$http_proxy" HTTPS_PROXY="$https_proxy"
+# export no_proxy="localhost,127.0.0.1,::1" NO_PROXY="localhost,127.0.0.1,::1"
+
+# install-deps.sh skips App Store apps (Xcode) on MDM-managed Macs. Force it:
+# 1 = skip (no Apple ID here), 0 = install (managed, but App Store allowed).
+# export DOTFILES_NO_APP_STORE=1

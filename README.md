@@ -137,6 +137,17 @@ chmod 600 ~/.config/shell/secrets.local
 `install.sh` prints this same command as a hint whenever it detects old rc
 backups — it never moves keys automatically.
 
+**Per-machine shell settings that aren't secrets**, such as a corporate
+proxy (`http_proxy`/`https_proxy`), go in `~/.config/shell/zshrc.local`
+(zsh) or `~/.config/shell/bashrc.local` (bash). Each is sourced last and
+never synced. Don't put them in `~/.zshrc`: that is a symlink into this
+public repo.
+
+```bash
+cp ~/.config/shell/zshrc.local.example ~/.config/shell/zshrc.local
+# edit: uncomment and fill in the proxy lines
+```
+
 ### 2. Git identity — `~/.config/git/gitconfig.local` (work machines)
 
 ```bash
@@ -227,6 +238,22 @@ active developer directory (`xcode-select -s`), accepts the license
 (`xcodebuild -license accept`) and installs the first-launch packages
 (`xcodebuild -runFirstLaunch`). Each step needs sudo and runs only if it
 hasn't been done yet, so reruns don't prompt.
+
+**Company-managed Macs** usually have no Apple ID in the App Store, by
+design. A script can't check the sign-in, so `install-deps.sh` checks
+whether the Mac is MDM-enrolled (`profiles status -type enrollment`) and, if
+it is, skips every App Store app in the Brewfile. Get Xcode from the
+company's Self Service portal, or from developer.apple.com with
+[xcodes](https://github.com/XcodesOrg/xcodes):
+
+```bash
+brew install xcodes aria2
+xcodes install --latest --select   # Apple ID + 2FA; honours https_proxy
+```
+
+`install-deps.sh` also sets up an xcodes-installed `/Applications/Xcode-*.app`.
+To override the MDM check, set `DOTFILES_NO_APP_STORE=1` (skip anyway) or
+`=0` (install anyway) in `~/.config/shell/zshrc.local`.
 
 `install-deps.sh` deletes iMovie, GarageBand, Keynote, Pages and Numbers on
 every Mac, along with GarageBand's multi-GB sound library (Apple Loops,

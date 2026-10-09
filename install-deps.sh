@@ -270,10 +270,34 @@ ensure_homebrew
 # freshly installed nvim/tmux satisfy the minimums and the Linux paths
 # (tarball/source-build) never trigger on a Mac.
 BREW_SOURCE_FILE="" BREW_SOURCE_LOG=""
+
+# App Store apps (Brewfile `mas` lines) need an Apple ID signed in to the App
+# Store, which a script cannot check (macOS 12 removed the API; mas dropped
+# `mas account`). Company-managed (MDM-enrolled) Macs usually have none by
+# design, so skip them there via brew bundle's HOMEBREW_BUNDLE_MAS_SKIP.
+# Override per machine (e.g. in ~/.config/shell/zshrc.local):
+#   DOTFILES_NO_APP_STORE=1  skip anyway (unmanaged Mac, no Apple ID)
+#   DOTFILES_NO_APP_STORE=0  install anyway (managed Mac that allows it)
+skip_app_store_apps() {
+  local reason=""
+  case "${DOTFILES_NO_APP_STORE:-}" in
+    1) reason="DOTFILES_NO_APP_STORE=1" ;;
+    0) return 0 ;;
+    *) profiles status -type enrollment 2>/dev/null | grep -q 'MDM enrollment: Yes' \
+         && reason="this Mac is company-managed (MDM)" ;;
+  esac
+  [[ -n "$reason" ]] || return 0
+  HOMEBREW_BUNDLE_MAS_SKIP="$(sed -n 's/^[[:space:]]*mas[[:space:]].*id:[[:space:]]*\([0-9][0-9]*\).*/\1/p' Brewfile | tr '\n' ' ')"
+  export HOMEBREW_BUNDLE_MAS_SKIP
+  log "skipping App Store apps: $reason (DOTFILES_NO_APP_STORE=0 to install them)"
+  echo "      Xcode: use your company's Self Service, or: brew install xcodes aria2 && xcodes install --latest --select"
+}
+
 ensure_brew_bundle() {
   if [[ "$(uname -s)" != "Darwin" ]] || ! command -v brew >/dev/null 2>&1; then
     return 0
   fi
+  skip_app_store_apps
   if [[ "$MODE" == "check" ]]; then
     log "Brewfile status (--check: nothing is installed)"
     brew bundle check --file=Brewfile --verbose \
@@ -395,17 +419,26 @@ ensure_brew_bundle
 # dir, its license is accepted and its first-launch packages are installed.
 # Each step is checked first, so sudo is only asked for on the run that
 # actually needs it; --check only reports.
+# Xcode may be /Applications/Xcode.app (App Store, Self Service) or a
+# versioned /Applications/Xcode-26.0.app (xcodes). An Xcode that is already
+# selected is left alone; otherwise Xcode.app, else the newest Xcode-*.app.
 ensure_xcode_ready() {
-  [[ "$(uname -s)" == "Darwin" && -d /Applications/Xcode.app ]] || return 0
-  local dev
+  [[ "$(uname -s)" == "Darwin" ]] || return 0
+  local dev app=""
   dev="$(xcode-select -p 2>/dev/null || true)"
-  if [[ "$dev" != /Applications/Xcode.app/* ]]; then
-    if [[ "$MODE" == "check" ]]; then
-      warn "Xcode installed but not selected (xcode-select -p: ${dev:-unset}) — will be selected"
+  if [[ "$dev" != /Applications/Xcode*.app/* ]]; then
+    if [[ -d /Applications/Xcode.app ]]; then
+      app=/Applications/Xcode.app
     else
-      log "selecting Xcode as the active developer directory"
-      sudo xcode-select -s /Applications/Xcode.app/Contents/Developer \
-        || { warn "xcode-select failed — run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer"; return 0; }
+      app="$(find /Applications -maxdepth 1 -name 'Xcode-*.app' -type d 2>/dev/null | sort -V | tail -n1)"
+    fi
+    [[ -n "$app" ]] || return 0   # no full Xcode installed
+    if [[ "$MODE" == "check" ]]; then
+      warn "Xcode installed but not selected (xcode-select -p: ${dev:-unset}) — will select $app"
+    else
+      log "selecting $app as the active developer directory"
+      sudo xcode-select -s "$app/Contents/Developer" \
+        || { warn "xcode-select failed — run: sudo xcode-select -s $app/Contents/Developer"; return 0; }
     fi
   fi
   [[ "$MODE" == "check" ]] && return 0
