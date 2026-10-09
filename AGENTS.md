@@ -58,7 +58,7 @@ desktops (i3)** and **Ubuntu servers**.
   Finder/Dock/typing keys). New tooling for macOS goes in the `Brewfile`;
   Linux apt packages go in `TOOL_DEPS` in `install-deps.sh`.
 - **Everything third-party is pinned.** nvim plugins via
-  `nvim/.config/nvim/lazy-lock.json`; nvim/tmux/nvm/uv via the version vars
+  `nvim/.config/nvim/lazy-lock.json`; nvim/tmux/mise/uv via the version vars
   at the top of `install-deps.sh`; tpm, oh-my-zsh and the tmux plugins via
   `TPM_REF` / `OMZ_REF` / `TMUX_PLUGIN_PINS` in the same file. Those last
   three are pinned by COMMIT, not tag: tpm's newest tag is 3 years behind its

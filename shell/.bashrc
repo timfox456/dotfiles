@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 # ~/.bashrc — headless Ubuntu servers (stowed via the shell package).
-# The synced ~/.bash_aliases (sourced near the end) carries aliases, nvm/uv
+# The synced ~/.bash_aliases (sourced near the end) carries aliases, mise/uv
 # loading and per-machine secrets; this file provides the base environment.
 # The interactive guard stays first: non-interactive shells (scp, remote
 # commands) must stay light.
@@ -78,7 +78,7 @@ if [ -x /usr/bin/dircolors ]; then
     alias egrep='egrep --color=auto'
 fi
 
-# ll/la/l, alert, the sessionizer alias, nvm/uv loading and the per-machine
+# ll/la/l, alert, the sessionizer alias, mise/uv loading and the per-machine
 # secrets sourcing all live in the synced ~/.bash_aliases — sourced LAST so
 # its PATH setup lands after everything above.
 

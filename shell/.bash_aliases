@@ -21,12 +21,10 @@ esac
 [[ -s "$HOME/.local/bin/env" ]] && { # shellcheck shell=sh disable=SC1091
    . "$HOME/.local/bin/env"; }
 
-# nvm (node version manager) — loaded only on machines where install-deps.sh
-# put it (~/.nvm exists). Lazy-free but costs ~50ms per shell; remove here
-# and lazy-load via an alias if shell startup ever feels slow.
-if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-   # shellcheck source=/dev/null
-   . "$HOME/.nvm/nvm.sh"
+# mise (runtime versions: node) — installed by install-deps.sh into
+# ~/.local/bin, which is on PATH from above.
+if command -v mise >/dev/null 2>&1; then
+   eval "$(mise activate bash)"
 fi
 
 # Per-machine secrets (API keys etc.) — copied from secrets.local.example,

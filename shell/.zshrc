@@ -47,33 +47,13 @@ alias vi="nvim"
 export ES_HOME="$HOME/timfox456"
 
 # === Version managers =======================================================
-# nvm: prefer the install-deps-managed ~/.nvm, fall back to Homebrew's.
-export NVM_DIR="$HOME/.nvm"
-if [[ -s "$NVM_DIR/nvm.sh" ]]; then
-  . "$NVM_DIR/nvm.sh"
-  [[ -s "$NVM_DIR/bash_completion" ]] && . "$NVM_DIR/bash_completion"
-elif command -v brew >/dev/null 2>&1; then
-  # Only when nvm is actually a brew formula here — `brew --prefix nvm`
-  # happily prints a path for an uninstalled formula.
-  _brew_nvm="$(brew --prefix nvm 2>/dev/null)/nvm.sh"
-  [[ -s "$_brew_nvm" ]] && . "$_brew_nvm"
-  unset _brew_nvm
+# mise is the only runtime version manager (node; install-deps.sh pins it to
+# ~/.local/bin). Python stays with uv. nvm/pyenv/rbenv are retired.
+if [[ -x "$HOME/.local/bin/mise" ]]; then
+  eval "$("$HOME/.local/bin/mise" activate zsh)"
+elif command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh)"
 fi
-
-# pyenv
-if command -v pyenv >/dev/null 2>&1; then
-  export PYENV_ROOT="$HOME/.pyenv"
-  case ":$PATH:" in
-    *":$PYENV_ROOT/bin:"*) ;;
-    *) export PATH="$PYENV_ROOT/bin:$PATH" ;;
-  esac
-  eval "$(pyenv init -)"
-  # pyenv-virtualenv is an optional plugin — tolerate machines without it
-  eval "$(pyenv virtualenv-init - 2>/dev/null || true)"
-fi
-
-# rbenv
-command -v rbenv >/dev/null 2>&1 && eval "$(rbenv init - zsh)"
 
 # uv (installer writes this env file)
 [[ -s "$HOME/.local/bin/env" ]] && . "$HOME/.local/bin/env"
@@ -159,8 +139,8 @@ if [[ -f "$HOME/.config/shell/secrets.local" ]]; then
 fi
 
 # === Per-machine shell tweaks ===============================================
-# Non-secret customizations that should NOT be synced (e.g. an rbenv init
-# for bash-flavored use on one machine). Create the file if you need it.
+# Non-secret customizations that should NOT be synced (e.g. a corporate
+# proxy) — copied from shell/.config/shell/zshrc.local.example.
 if [[ -f "$HOME/.config/shell/zshrc.local" ]]; then
    # shellcheck source=/dev/null
    source "$HOME/.config/shell/zshrc.local"

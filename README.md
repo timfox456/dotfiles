@@ -319,24 +319,32 @@ Usage: `pass insert site/name`, `pass show site/name`, `pass generate
 site/name 24` (generates + copies to clipboard). Optional extras if wanted:
 `apt install pass-otp` / `brew install pass-otp` (TOTP), `zbar` (QR import).
 
-### Runtime managers: nvm now, fnm/mise as the documented future option
+### Runtime versions: mise (+ uv for Python)
 
-Node version management uses **nvm** (installed here, LTS node + default
-alias auto-provisioned when no node versions exist). It works and is
-CI-covered — but two alternatives are worth knowing:
+**mise** is the one runtime version manager. `install-deps.sh` installs a
+pinned binary (`MISE_VERSION`) into `~/.local/bin` on every machine, and
+gives it node LTS as the global default (`~/.config/mise/config.toml`,
+machine-local, not stowed). Both shells run `mise activate`. Interactive
+shells, Mason's npm-based LSP servers and the npm globals (typescript,
+typescript-language-server, TypeScript pi) all use that node. The apt
+`nodejs` package is only a fallback if mise is broken.
 
-- **fnm** — Rust single-binary node manager; ~5ms shell startup vs nvm's
-  ~50–100ms, no environment-variable quirks, reads `.nvmrc`. The swap is
-  small (one zip binary + `eval "$(fnm env --use-on-cd)"` in the shell rc)
-  and becomes worth it if shell startup on tiny instances ever annoys you.
-- **mise** — the bigger consolidation: one Rust tool replacing nvm **and**
-  pyenv **and** rbenv **and** uv's version management. Consider when the
-  multi-version-manager sprawl across machines becomes the pain point.
+```bash
+mise use -g node@22        # change the global node; install-deps.sh keeps it
+mise use node@20           # per project (writes ./mise.toml)
+mise ls                    # what's installed / active
+```
 
-Deliberate design note: node comes from nvm (LTS) on all machines — both
-interactive shells and Mason's npm-based LSP servers resolve through it.
-The apt `nodejs` package is no longer installed; it only gets pulled in as
-a fallback if nvm is missing or broken on a machine.
+**uv** stays for Python. It manages Python versions as well as packages and
+venvs, so mise doesn't need to.
+
+**nvm, pyenv and rbenv are retired.** The shells no longer load them, and
+`install-deps.sh` deletes `~/.nvm` (and Homebrew's nvm) once mise's node
+works. If `~/.nvm` holds npm globals that `install-deps.sh` doesn't
+reinstall, it keeps the folder and lists them instead. pyenv and rbenv were
+never installed by these dotfiles, so their folders aren't touched. Remove
+them yourself when you're ready (`rm -rf ~/.pyenv ~/.rbenv`, or
+`brew uninstall pyenv rbenv`).
 
 ## Gmail via aerc (OAuth — no app passwords, no 2FA requirement)
 

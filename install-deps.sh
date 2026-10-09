@@ -30,7 +30,7 @@ cd "$(dirname "$0")"
 
 NVIM_VERSION="${NVIM_VERSION:-0.12.4}"
 TMUX_VERSION="${TMUX_VERSION:-3.7c}"
-NVM_VERSION="${NVM_VERSION:-v0.40.7}"
+MISE_VERSION="${MISE_VERSION:-v2026.10.6}"
 UV_VERSION="${UV_VERSION:-0.12.7}"
 KEYD_VERSION="${KEYD_VERSION:-2.6.0}"
 KEYD="${KEYD:-auto}"
@@ -88,9 +88,9 @@ pin_git_ref() {
 #   stow -> install.sh (dotfiles linking; noble ships 2.3.1, fully sufficient)
 #   rg -> telescope live_grep          fzf -> tmux-fzf
 #   git -> lazy.nvim, tpm              build-essential -> treesitter parser builds
-#   node/npm -> NOT apt-installed: nvm provides node LTS (see ensure_nvm);
+#   node/npm -> NOT apt-installed: mise provides node LTS (see ensure_mise);
 #              mason + npm-globals use it. apt nodejs/npm only as a fallback
-#              if nvm is broken (handled in ensure_npm_globals).
+#              if mise is broken (handled in ensure_npm_globals).
 #   python3/pip/venv -> mason (ruff, black, isort, mypy, pylint, debugpy)
 #   unzip -> some mason packages
 #   mosh -> roaming/persistent SSH sessions (pairs with tmux; needs UDP 60000-61000)
@@ -560,6 +560,12 @@ if [[ "$MODE" == "check" ]]; then
       log "tool deps (${TOOL_DEPS[*]}): OK"
     fi
   fi
+  if [[ -x "$HOME/.local/bin/mise" ]]; then
+    log "mise: $("$HOME/.local/bin/mise" version 2>/dev/null | awk 'NR==1{print $1}') (pin ${MISE_VERSION}); node: $("$HOME/.local/bin/mise" current node 2>/dev/null || echo none)"
+  else
+    warn "mise: not installed (pin ${MISE_VERSION}) — will be installed"
+  fi
+  if [[ -d "$HOME/.nvm" ]]; then warn "nvm (~/.nvm) still present — removed once mise's node works"; fi
   if [[ "$(uname -s)" == "Linux" ]]; then
     if command -v keyd >/dev/null 2>&1; then
       log "keyd: $(keyd --version 2>&1 | head -n1) (pin ${KEYD_VERSION})"
@@ -676,43 +682,45 @@ ensure_tree_sitter_cli() {
 }
 ensure_tree_sitter_cli
 
-# --- nvm + uv (per-machine dev tooling; user-local, no sudo) -----------------
-ensure_nvm() {
-  # env -u PREFIX: nvm refuses to run when PREFIX is set (the script sets it),
-  # so the probe would always fail and force a reinstall on every run.
-  local installed
-  # shellcheck disable=SC2016  # intentional: ${HOME} must expand inside the subshell, after nvm.sh loads
-  installed="$(env -u PREFIX bash -c '. "$HOME/.nvm/nvm.sh" && nvm --version' 2>/dev/null | head -n1 || true)"
-  if [[ -n "$installed" ]] && ver_ge "$installed" "${NVM_VERSION#v}"; then
-    log "nvm: $installed (>= ${NVM_VERSION})"
+# --- mise + uv (per-machine dev tooling; user-local, no sudo) ----------------
+# mise is the one runtime version manager (node today; python stays with uv,
+# which is far more than a version manager). Pinned binary in ~/.local/bin on
+# both macOS and Linux — the installer verifies its sha256.
+MISE="$HOME/.local/bin/mise"
+MISE_GLOBAL_CONFIG="${MISE_GLOBAL_CONFIG_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/mise/config.toml}"
+
+# Puts mise's active tools (node, npm globals) on PATH — call inside a
+# subshell. Exported PREFIX makes npm install globals under it, so drop it.
+mise_env() {
+  unset PREFIX
+  local bins
+  bins="$("$MISE" bin-paths 2>/dev/null | paste -sd: - || true)"
+  # mise's own dir too: its npm wrapper runs `mise reshim` after -g installs
+  PATH="${bins:+$bins:}${MISE%/*}:$PATH"
+  hash -r
+}
+
+ensure_mise() {
+  local cur=""
+  [[ -x "$MISE" ]] && cur="$("$MISE" version 2>/dev/null | awk 'NR==1{print $1}')"
+  if [[ "v${cur#v}" == "$MISE_VERSION" ]]; then
+    log "mise: $cur"
   else
-    log "installing nvm ${NVM_VERSION}${installed:+ (upgrading from $installed)} -> ~/.nvm"
-    # Pre-create NVM_DIR: the installer only auto-creates it when it matches
-    # its default ($HOME/.nvm, or $XDG_CONFIG_HOME/nvm if that var is set) —
-    # a preset-but-missing dir on an XDG machine would be refused.
-    mkdir -p "$HOME/.nvm"
-    # Pin NVM_DIR explicitly: never inherit it from the calling environment,
-    # or the installer could target the wrong home.
-    curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" \
-      | NVM_DIR="$HOME/.nvm" METHOD=git bash \
-      || warn "nvm install failed — see https://github.com/nvm-sh/nvm"
+    log "installing mise ${MISE_VERSION}${cur:+ (upgrading from $cur)} -> ~/.local/bin"
+    curl -fsSL https://mise.run \
+      | MISE_VERSION="$MISE_VERSION" MISE_INSTALL_PATH="$MISE" sh \
+      || { warn "mise install failed — see https://mise.jdx.dev"; return 0; }
   fi
-  # Provide an actual node runtime through nvm: nvm alone gives no node/npm,
-  # and Mason's npm-based LSP servers (pyright, prettierd, eslint_d) need one.
-  # Skipped when the user already manages their own node versions.
-  # (System apt nodejs remains the non-interactive fallback for scripts.)
-  # PREFIX is unset inside a subshell — nvm refuses to run with it set, but
-  # the global PREFIX (/usr/local) is needed later by the nvim/tmux installers.
-  if [[ -z "$(find "$HOME/.nvm/versions/node" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null || true)" ]]; then
-    log "installing node LTS via nvm (+ default alias)"
-    (
-      unset PREFIX
-      export NVM_DIR="$HOME/.nvm"
-      # shellcheck source=/dev/null
-      . "$NVM_DIR/nvm.sh"
-      nvm install --lts
-      nvm alias default 'lts/*'
-    ) || warn "node LTS install failed — run 'nvm install --lts' manually"
+  # node: Mason's npm-based LSP servers (pyright, prettierd, eslint_d) and
+  # the npm globals below need one. Default to LTS only while the global
+  # config names no node yet — a later `mise use -g node@22` is respected.
+  if grep -qE '^[[:space:]]*node[[:space:]]*=' "$MISE_GLOBAL_CONFIG" 2>/dev/null; then
+    log "node via mise: ensuring the configured version"
+    "$MISE" install --yes node || warn "mise install node failed"
+  else
+    log "node via mise: LTS as the global default"
+    "$MISE" use --global --yes node@lts \
+      || warn "node LTS install failed — run 'mise use -g node@lts' manually"
   fi
 }
 
@@ -731,21 +739,16 @@ ensure_uv() {
   curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh \
     || warn "uv install failed — see https://docs.astral.sh/uv/"
 }
-ensure_nvm
+ensure_mise
 ensure_uv
 
 # --- typescript-language-server (removed from mason registry; npm global) ----
 ensure_npm_globals() {
-  # Runs in a subshell with PREFIX unset: nvm refuses to operate when it is
-  # set, and nothing here needs the installer's global PREFIX. node/npm come
-  # from nvm (LTS installed above); apt nodejs+npm is only a fallback if nvm
-  # is missing/broken — keeps the apt footprint lean.
+  # Subshell: mise_env drops the installer's global PREFIX (npm would install
+  # under it). node/npm come from mise (LTS installed above); apt nodejs+npm
+  # is only a fallback if mise is missing/broken — keeps apt lean.
   (
-    unset PREFIX
-    if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-      # shellcheck source=/dev/null
-      . "$HOME/.nvm/nvm.sh"
-    fi
+    mise_env
     if ! command -v npm >/dev/null 2>&1; then
       warn "npm still missing — falling back to apt nodejs+npm"
       ensure_apt_packages nodejs npm
@@ -755,7 +758,13 @@ ensure_npm_globals() {
     # current. This also repairs bad installs (e.g. typescript@7 alongside a
     # typescript-language-server that requires typescript@5).
     log "ensuring typescript@5 + typescript-language-server (npm global)"
-    if [[ -w "$(npm config get prefix)/lib" || -w "$(npm config get prefix)" ]]; then
+    # `npm prefix -g`, not `npm config get prefix`: npm >= 11 refuses the
+    # latter ("prefix option is protected"), which read as unwritable -> sudo.
+    local npm_prefix
+    npm_prefix="$(npm prefix -g 2>/dev/null || true)"
+    # npm masks token-looking path parts as *** — fall back to node's own dir
+    [[ -d "$npm_prefix" ]] || npm_prefix="$(dirname "$(dirname "$(command -v node)")")"
+    if [[ -n "$npm_prefix" && ( -w "$npm_prefix/lib" || -w "$npm_prefix" ) ]]; then
       npm install -g -q "typescript@5" typescript-language-server \
         || warn "npm install failed — run 'npm i -g typescript@5 typescript-language-server' manually"
     else
@@ -992,15 +1001,17 @@ ensure_pi_agent() {
 
   # Name normalization: the rust build must always be `pi-rust` — `pi` is
   # reserved for the TypeScript pi. The rust installer writes to whichever
-  # bin dir contains the existing pi (often the nvm node bin, not
+  # bin dir contains the existing pi (often mise's node bin, not
   # ~/.local/bin), so check all candidate paths.
   local rust_src=""
   local candidate
-  # The nvm path must stay UNQUOTED so the version glob expands (a quoted
-  # "*" matched nothing, which defeated the whole normalization step).
+  # The node-install paths must stay UNQUOTED so the version glob expands (a
+  # quoted "*" matched nothing, which defeated the whole normalization step).
+  # The ~/.nvm one only matters until remove_nvm has run once.
   # shellcheck disable=SC2231
   for candidate in \
     "$HOME/.local/bin/pi" \
+    ${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/node/*/bin/pi \
     $HOME/.nvm/versions/node/*/bin/pi \
     "/usr/local/bin/pi"; do
     # glob may expand to nothing (stays literal) — -x filters that out
@@ -1031,27 +1042,23 @@ ensure_pi_agent
 # The full-featured coding agent from the pi-mono repo (the Rust port is
 # pi_agent_rust above). High tier only: needs node >= 22.19. Runs AFTER the
 # rust installer so that npm reinstalls the TS binary as `pi`, overwriting
-# any copy the rust installer left in the nvm node bin path.
+# any copy the rust installer left in mise's node bin path.
 PI_MIN_NODE_VERSION="${PI_MIN_NODE_VERSION:-22.19.0}"
 ensure_pi_ts() {
   [[ "$TIER" == "low" ]] && { log "tier low — skipping TypeScript pi (uses pi-rust instead)"; return 0; }
   (
-    unset PREFIX
-    if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
-      # shellcheck source=/dev/null
-      . "$HOME/.nvm/nvm.sh"
-    fi
+    mise_env
     command -v npm >/dev/null 2>&1 || { warn "npm not found — skipping TypeScript pi install"; return 0; }
-    # TS pi requires node >= 22.19: refresh the nvm LTS when the active node
-    # is older (idempotent — `nvm install --lts` resolves to the newest LTS).
+    # TS pi requires node >= 22.19: move the global node to the newest LTS
+    # when the configured one is older.
     local node_cur node_min
     node_cur="$(node --version 2>/dev/null | sed 's/^v//')"
     node_min="${PI_MIN_NODE_VERSION#v}"
     if [[ -z "$node_cur" ]] || ! ver_ge "$node_cur" "$node_min"; then
       log "node ${node_cur:-missing}: below TypeScript pi minimum ${node_min} — installing latest LTS"
-      nvm install --lts && nvm alias default 'lts/*' \
+      "$MISE" use --global --yes node@lts \
         || { warn "node LTS install failed — skipping TypeScript pi"; return 0; }
-      hash -r
+      mise_env
     fi
     log "ensuring @earendil-works/pi-coding-agent (npm global)"
     npm install -g -q @earendil-works/pi-coding-agent \
@@ -1061,6 +1068,48 @@ ensure_pi_ts() {
   ) || warn "TypeScript pi stage failed"
 }
 ensure_pi_ts
+
+# --- retire nvm (replaced by mise) --------------------------------------------
+# Delete ~/.nvm once mise's node works, unless it holds npm globals that
+# install-deps.sh doesn't reinstall — those are listed instead, so nothing
+# hand-installed disappears silently. pi-rust was already copied out above.
+remove_nvm() {
+  local brew_nvm=0
+  command -v brew >/dev/null 2>&1 && brew list --formula nvm >/dev/null 2>&1 && brew_nvm=1
+  [[ -d "$HOME/.nvm" ]] || ((brew_nvm)) || return 0
+  if ! (mise_env; command -v node >/dev/null 2>&1 && [[ "$(command -v node)" != "$HOME/.nvm/"* ]]); then
+    warn "nvm kept: mise's node isn't working yet"
+    return 0
+  fi
+  if ((brew_nvm)); then
+    log "removing Homebrew's nvm (replaced by mise)"
+    brew uninstall nvm || warn "brew uninstall nvm failed"
+  fi
+  [[ -d "$HOME/.nvm" ]] || return 0
+  local extra=() mod pkg
+  # node_modules/<pkg> and node_modules/@scope/<pkg>, across every version
+  for mod in "$HOME"/.nvm/versions/node/*/lib/node_modules/* \
+             "$HOME"/.nvm/versions/node/*/lib/node_modules/@*/*; do
+    [[ -d "$mod" ]] || continue
+    pkg="${mod#*/lib/node_modules/}"
+    case "$pkg" in
+      @*/*) ;;            # scoped package — judged below
+      @*) continue ;;     # the @scope dir itself
+    esac
+    case "$pkg" in
+      npm|corepack|typescript|typescript-language-server|@earendil-works/pi-coding-agent) continue ;;
+    esac
+    case " ${extra[*]:-} " in *" $pkg "*) ;; *) extra+=("$pkg") ;; esac
+  done
+  if ((${#extra[@]})); then
+    warn "$HOME/.nvm kept: it has npm globals install-deps.sh doesn't manage: ${extra[*]}"
+    echo "      reinstall them under mise (npm i -g ${extra[*]}), then: rm -rf ~/.nvm" >&2
+    return 0
+  fi
+  log "removing ~/.nvm (replaced by mise)"
+  rm -rf "$HOME/.nvm"
+}
+remove_nvm
 
 # --- oh-my-zsh (macOS only — Linux servers run bash) -------------------------
 ensure_omz() {
